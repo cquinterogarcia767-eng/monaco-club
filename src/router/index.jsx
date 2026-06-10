@@ -15,6 +15,7 @@ const PrizesPage  = lazy(() => import('@/features/prizes/PrizesPage'))
 const ProfilePage = lazy(() => import('@/features/auth/ProfilePage'))
 const AdminPage   = lazy(() => import('@/features/admin/AdminPage'))
 const StaffPage   = lazy(() => import('@/features/staff/StaffPage'))
+const TermsPage   = lazy(() => import('@/features/auth/TermsPage'))
 
 const wrap = (Component) => (
   <Suspense fallback={<LoadingScreen />}>
@@ -45,5 +46,9 @@ export const router = createBrowserRouter([
   {
     path: '/staff',
     element: <StaffRoute>{wrap(StaffPage)}</StaffRoute>
-  }
+  },
+  {
+  path: '/terminos',
+  element: wrap(TermsPage)
+},
 ])

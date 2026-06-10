@@ -9,6 +9,7 @@ import { Link }              from 'react-router-dom'
 import LoadingScreen         from '@/components/ui/LoadingScreen'
 import QRCode                from 'qrcode'
 import toast                 from 'react-hot-toast'
+import { useSignOut } from '@/hooks/useSignOut'
 
 export default function ProfilePage() {
   const { user, profile, setProfile }          = useAuthStore()
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const [qrUrl, setQrUrl]                      = useState(null)
   const [uploadingPhoto, setUploadingPhoto]    = useState(false)
   const fileInputRef                           = useRef(null)
+  const signOut = useSignOut()
 
   const accuracy = profile?.total_bets > 0
     ? Math.round((profile.total_correct / profile.total_bets) * 100)
@@ -197,12 +199,9 @@ export default function ProfilePage() {
           </Link>
         )}
 
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="btn-ghost text-sm py-3"
-        >
-          Cerrar sesión
-        </button>
+        <button onClick={signOut} className="btn-ghost text-sm py-3">
+  Cerrar sesión
+</button>
       </div>
 
       {/* Modal QR */}

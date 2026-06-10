@@ -1,6 +1,4 @@
-import { useState } from 'react'
-import { format }   from 'date-fns'
-import { es }       from 'date-fns/locale'
+import { useState, useEffect } from 'react'
 import { CheckCircle, Lock, Clock } from 'lucide-react'
 import { usePlaceBet } from '@/features/bets/useBets'
 
@@ -30,17 +28,19 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
     })
   }
 
-  // Mostrar hora Colombia directamente sin conversión del navegador
-const matchTime = (() => {
-  const d = new Date(match.match_date)
-  // Convertir UTC a Colombia (UTC-5)
-  const h = ((d.getUTCHours() - 5 + 24) % 24)
-  const m = d.getUTCMinutes()
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const hour = h % 12 || 12
-  const mins = m > 0 ? `:${String(m).padStart(2, '0')}` : ''
-  return `${hour}${mins} ${ampm}`
-})()
+  const matchTime = (() => {
+    const d    = new Date(match.match_date)
+    const h    = ((d.getUTCHours() - 5 + 24) % 24)
+    const m    = d.getUTCMinutes()
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    const mins = m > 0 ? `:${String(m).padStart(2, '0')}` : ''
+    return `${hour}${mins} ${ampm}`
+  })()
+
+  // Marcador a mostrar — real si está en vivo o finalizado
+  const displayHome = (isLive || isFinished) ? (match.home_score ?? 0) : home
+  const displayAway = (isLive || isFinished) ? (match.away_score ?? 0) : away
 
   return (
     <div className={`card transition-all ${
@@ -49,17 +49,27 @@ const matchTime = (() => {
       hasBet            ? 'border-monaco-red/30' : ''
     }`}>
 
-      {/* Header del partido */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-[10px] text-monaco-red tracking-widest uppercase">
           {match.group_name}
         </span>
         <div className="flex items-center gap-1.5">
           {isLive && (
-            <span className="flex items-center gap-1 text-[10px] text-green-400">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              En vivo
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 text-[10px] text-green-400">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                En vivo
+              </span>
+              {match.betting_open && match.live_started_at && (
+                <BettingCountdown liveStartedAt={match.live_started_at} />
+              )}
+              {!match.betting_open && (
+                <span className="text-[10px] text-monaco-silver/50 flex items-center gap-1">
+                  <Lock size={10} /> Apuestas cerradas
+                </span>
+              )}
+            </div>
           )}
           {!isLive && !isFinished && (
             <span className="flex items-center gap-1 text-[10px] text-monaco-silver">
@@ -84,29 +94,29 @@ const matchTime = (() => {
           </span>
         </div>
 
-        {/* Selector de marcador */}
+        {/* Selector */}
         <div className="flex items-center gap-2 mx-2">
+
           {/* Goles local */}
           <div className="flex flex-col items-center gap-1">
-            {canBet && !hasBet && (
+            {canBet && !hasBet && !isLive && (
               <button onClick={() => adjust('home', 1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
-                           flex items-center justify-center active:bg-white/10">
-                +
-              </button>
+                           flex items-center justify-center active:bg-white/10">+</button>
             )}
             <div className={`w-11 h-11 rounded-xl flex items-center justify-center
                             text-xl font-display font-bold
-                            ${hasBet ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
-                                     : 'bg-white/5 text-monaco-white border border-white/10'}`}>
-              {isFinished ? match.home_score : home}
+                            ${isLive
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                              : hasBet
+                                ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
+                                : 'bg-white/5 text-monaco-white border border-white/10'}`}>
+              {displayHome}
             </div>
-            {canBet && !hasBet && (
+            {canBet && !hasBet && !isLive && (
               <button onClick={() => adjust('home', -1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
-                           flex items-center justify-center active:bg-white/10">
-                −
-              </button>
+                           flex items-center justify-center active:bg-white/10">−</button>
             )}
           </div>
 
@@ -114,25 +124,24 @@ const matchTime = (() => {
 
           {/* Goles visitante */}
           <div className="flex flex-col items-center gap-1">
-            {canBet && !hasBet && (
+            {canBet && !hasBet && !isLive && (
               <button onClick={() => adjust('away', 1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
-                           flex items-center justify-center active:bg-white/10">
-                +
-              </button>
+                           flex items-center justify-center active:bg-white/10">+</button>
             )}
             <div className={`w-11 h-11 rounded-xl flex items-center justify-center
                             text-xl font-display font-bold
-                            ${hasBet ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
-                                     : 'bg-white/5 text-monaco-white border border-white/10'}`}>
-              {isFinished ? match.away_score : away}
+                            ${isLive
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                              : hasBet
+                                ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
+                                : 'bg-white/5 text-monaco-white border border-white/10'}`}>
+              {displayAway}
             </div>
-            {canBet && !hasBet && (
+            {canBet && !hasBet && !isLive && (
               <button onClick={() => adjust('away', -1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
-                           flex items-center justify-center active:bg-white/10">
-                −
-              </button>
+                           flex items-center justify-center active:bg-white/10">−</button>
             )}
           </div>
         </div>
@@ -146,14 +155,16 @@ const matchTime = (() => {
         </div>
       </div>
 
-      {/* Footer — acción */}
-      {canBet && !hasBet && (
-        <button
-          onClick={handleBet}
-          disabled={isPending}
-          className="btn-primary text-sm py-2.5"
-        >
+      {/* Footer */}
+      {canBet && !hasBet && !isLive && (
+        <button onClick={handleBet} disabled={isPending} className="btn-primary text-sm py-2.5">
           {isPending ? 'Registrando...' : 'Apostar este marcador'}
+        </button>
+      )}
+
+      {canBet && !hasBet && isLive && match.betting_open && (
+        <button onClick={handleBet} disabled={isPending} className="btn-primary text-sm py-2.5">
+          {isPending ? 'Registrando...' : 'Apostar marcador actual'}
         </button>
       )}
 
@@ -191,5 +202,41 @@ const matchTime = (() => {
         </div>
       )}
     </div>
+  )
+}
+
+function BettingCountdown({ liveStartedAt }) {
+  const [remaining, setRemaining] = useState(null)
+
+  useEffect(() => {
+    if (!liveStartedAt) return
+
+    function calc() {
+      const started  = new Date(liveStartedAt).getTime()
+      const deadline = started + 15 * 60 * 1000
+      const diff     = Math.max(0, deadline - Date.now())
+      setRemaining(diff)
+    }
+
+    calc()
+    const interval = setInterval(calc, 1000)
+    return () => clearInterval(interval)
+  }, [liveStartedAt])
+
+  if (remaining === null) return null
+  if (remaining === 0) return (
+    <span className="text-[10px] text-monaco-silver/50 flex items-center gap-1">
+      <Lock size={10} /> Cerradas
+    </span>
+  )
+
+  const mins = Math.floor(remaining / 60000)
+  const secs = Math.floor((remaining % 60000) / 1000)
+
+  return (
+    <span className={`text-[10px] flex items-center gap-1
+      ${remaining < 60000 ? 'text-red-400 animate-pulse' : 'text-yellow-400'}`}>
+      ⏱ {mins}:{String(secs).padStart(2, '0')} para apostar
+    </span>
   )
 }

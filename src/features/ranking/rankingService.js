@@ -2,10 +2,10 @@ import { supabase } from '@/lib/supabase'
 
 export async function getRanking() {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, total_points, total_correct, total_bets')
+    .from('full_ranking')
+    .select('*')
     .order('total_points', { ascending: false })
-    .limit(50)
+    .limit(100)
 
   if (error) throw error
   return data

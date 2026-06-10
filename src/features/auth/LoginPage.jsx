@@ -1,6 +1,9 @@
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import toast from 'react-hot-toast'
+import { useState }    from 'react'
+import { supabase }    from '@/lib/supabase'
+import toast           from 'react-hot-toast'
+
+// ── Logo real del cliente (activo) ──
+import LogoReal from '@/assets/Logo.png'
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
@@ -19,18 +22,6 @@ export default function LoginPage() {
     }
   }
 
-  async function handleFacebook() {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: { redirectTo: window.location.origin }
-    })
-    if (error) {
-      toast.error('Error al conectar con Facebook')
-      setLoading(false)
-    }
-  }
-
   async function handleMagicLink() {
     if (!email) return toast.error('Ingresa tu email')
     setLoading(true)
@@ -44,11 +35,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-monaco-black flex flex-col items-center justify-between px-6 py-12">
+    <div className="min-h-screen bg-monaco-black flex flex-col items-center
+                    justify-between px-6 py-12">
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 w-full max-w-sm">
+      <div className="flex-1 flex flex-col items-center justify-center
+                      gap-6 w-full max-w-sm">
 
-        {/* Escudo */}
+        {/* ── Logo real del cliente (activo) ── */}
+        <div className="animate-fade-up">
+          <img
+            src={LogoReal}
+            alt="Mónaco Club"
+            className="w-28 h-28 object-contain"
+          />
+        </div>
+
+        {/* ── Logo SVG nuestro — comentado para comparar ──
         <div className="animate-fade-up">
           <svg width="88" height="100" viewBox="0 0 64 72" fill="none">
             <path d="M32 2L60 14V38C60 54 32 70 32 70C32 70 4 54 4 38V14L32 2Z"
@@ -65,9 +67,11 @@ export default function LoginPage() {
             </text>
           </svg>
         </div>
+        ── */}
 
         {/* Títulos */}
-        <div className="text-center animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
+        <div className="text-center animate-fade-up"
+          style={{ animationDelay: '0.1s', opacity: 0 }}>
           <h1 className="font-display text-3xl text-monaco-white tracking-widest">
             MÓNACO
           </h1>
@@ -78,7 +82,8 @@ export default function LoginPage() {
         </div>
 
         {/* Descripción */}
-        <div className="text-center animate-fade-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
+        <div className="text-center animate-fade-up"
+          style={{ animationDelay: '0.2s', opacity: 0 }}>
           <p className="text-monaco-silver text-sm leading-relaxed">
             Predice el marcador de cada partido<br />
             del Mundial y gana premios esta noche
@@ -90,24 +95,27 @@ export default function LoginPage() {
           style={{ animationDelay: '0.3s', opacity: 0 }}>
 
           <button onClick={handleGoogle} disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-4 bg-monaco-card
-                       border border-white/10 rounded-2xl text-monaco-white text-sm
-                       font-body font-medium tracking-wide transition-all
-                       active:scale-95 hover:border-white/20 disabled:opacity-50">
+            className="w-full flex items-center justify-center gap-3 py-4
+                       bg-monaco-card border border-white/10 rounded-2xl
+                       text-monaco-white text-sm font-body font-medium
+                       tracking-wide transition-all active:scale-95
+                       hover:border-white/20 disabled:opacity-50">
             <GoogleIcon />
             Continuar con Google
           </button>
 
+          {/* Facebook — comentado hasta que vuelva el sitio
           <button onClick={handleFacebook} disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-4 bg-monaco-card
-                       border border-white/10 rounded-2xl text-monaco-white text-sm
-                       font-body font-medium tracking-wide transition-all
-                       active:scale-95 hover:border-white/20 disabled:opacity-50">
+            className="w-full flex items-center justify-center gap-3 py-4
+                       bg-monaco-card border border-white/10 rounded-2xl
+                       text-monaco-white text-sm font-body font-medium
+                       tracking-wide transition-all active:scale-95
+                       hover:border-white/20 disabled:opacity-50">
             <FacebookIcon />
             Continuar con Facebook
           </button>
+          */}
 
-          {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-white/10" />
             <span className="text-monaco-silver text-xs">o entra con email</span>
@@ -122,16 +130,20 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 className="w-full bg-monaco-card border border-white/10 rounded-2xl
-                           px-4 py-3 text-sm text-monaco-white placeholder-monaco-silver/40
-                           focus:outline-none focus:border-monaco-red/50"
+                           px-4 py-3 text-sm text-monaco-white
+                           placeholder-monaco-silver/40 focus:outline-none
+                           focus:border-monaco-red/50"
               />
-              <button onClick={handleMagicLink} disabled={loading} className="btn-primary">
+              <button onClick={handleMagicLink} disabled={loading}
+                className="btn-primary">
                 {loading ? 'Enviando...' : 'Enviar enlace de acceso'}
               </button>
             </div>
           ) : (
             <div className="card border-monaco-red/30 text-center py-4">
-              <p className="text-monaco-white text-sm font-medium mb-1">¡Revisa tu correo!</p>
+              <p className="text-monaco-white text-sm font-medium mb-1">
+                ¡Revisa tu correo!
+              </p>
               <p className="text-monaco-silver text-xs">
                 Te enviamos un enlace para entrar
               </p>
@@ -139,16 +151,28 @@ export default function LoginPage() {
           )}
         </div>
 
-        <p className="text-center text-monaco-silver text-xs leading-relaxed animate-fade-up"
+        <p className="text-center text-monaco-silver text-xs leading-relaxed
+                      animate-fade-up"
           style={{ animationDelay: '0.4s', opacity: 0 }}>
           El acceso se activa en mesa.<br />
           Disponible solo para clientes del club.
         </p>
       </div>
 
-      <p className="text-monaco-silver/40 text-[10px] tracking-widest uppercase">
-        Mundial 2026
-      </p>
+      {/* Footer */}
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-monaco-silver/40 text-[10px] text-center">
+          Al entrar aceptas nuestros{' '}
+          <a href="/terminos" target="_blank"
+            className="text-monaco-silver/60 underline underline-offset-2">
+            términos y condiciones
+          </a>
+        </p>
+        <p className="text-monaco-silver/40 text-[10px] tracking-widest uppercase">
+          Mundial 2026
+        </p>
+      </div>
+
     </div>
   )
 }
@@ -164,10 +188,10 @@ function GoogleIcon() {
   )
 }
 
-function FacebookIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-    </svg>
-  )
-}
+// function FacebookIcon() {
+//   return (
+//     <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
+//       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+//     </svg>
+//   )
+// }

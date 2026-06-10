@@ -1,7 +1,7 @@
 import { useState }            from 'react'
 import { format, addDays, subDays, isToday } from 'date-fns'
 import { es }                  from 'date-fns/locale'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useMatchesByDate }    from './useMatches'
 import { useMyBetsToday }      from '@/features/bets/useBets'
 import { useTableSession }     from '@/features/table-sessions/useTableSession'
@@ -10,7 +10,6 @@ import MatchCard               from './MatchCard'
 import LoadingScreen           from '@/components/ui/LoadingScreen'
 
 export default function MatchesPage() {
-  const { profile }  = useAuthStore()
   const [date, setDate] = useState(new Date())
 
   const { data: matches = [], isLoading } = useMatchesByDate(date)
@@ -21,7 +20,17 @@ export default function MatchesPage() {
     betsToday.map(b => [b.match_id, b])
   )
 
-  const dateLabel = isToday(date)
+  // Fecha de hoy en Colombia (UTC-5)
+  const nowColombia = new Date(Date.now() - 5 * 60 * 60 * 1000)
+  const todayStr    = nowColombia.toISOString().split('T')[0]
+  const selectedStr = new Date(date.getTime() - 5 * 60 * 60 * 1000)
+    .toISOString().split('T')[0]
+
+  // Solo puede apostar si la fecha seleccionada es HOY
+  const isSelectedToday = selectedStr === todayStr
+  const canBetToday     = hasAccess && isSelectedToday
+
+  const dateLabel = isSelectedToday
     ? 'Hoy'
     : format(date, "EEEE d 'de' MMMM", { locale: es })
 
@@ -34,11 +43,9 @@ export default function MatchesPage() {
       {/* Header */}
       <div className="px-5 pt-10 pb-4 bg-gradient-to-b from-[#1a0508] to-monaco-black">
         <div className="flex items-center justify-between mb-1">
-          <div>
-            <h1 className="font-display text-2xl text-monaco-white tracking-wide">
-              Partidos
-            </h1>
-          </div>
+          <h1 className="font-display text-2xl text-monaco-white tracking-wide">
+            Partidos
+          </h1>
           {hasAccess ? (
             <span className="text-[10px] bg-monaco-red/20 text-monaco-red
                              border border-monaco-red/30 px-2 py-1 rounded-full tracking-wide">
@@ -59,8 +66,7 @@ export default function MatchesPage() {
         <button
           onClick={() => setDate(d => subDays(d, 1))}
           className="w-8 h-8 flex items-center justify-center rounded-lg
-                     bg-white/5 text-monaco-silver active:bg-white/10"
-        >
+                     bg-white/5 text-monaco-silver active:bg-white/10">
           <ChevronLeft size={16} />
         </button>
 
@@ -76,8 +82,7 @@ export default function MatchesPage() {
         <button
           onClick={() => setDate(d => addDays(d, 1))}
           className="w-8 h-8 flex items-center justify-center rounded-lg
-                     bg-white/5 text-monaco-silver active:bg-white/10"
-        >
+                     bg-white/5 text-monaco-silver active:bg-white/10">
           <ChevronRight size={16} />
         </button>
       </div>
@@ -85,7 +90,7 @@ export default function MatchesPage() {
       <div className="px-4 pt-4 space-y-3">
 
         {/* Sin acceso */}
-        {!hasAccess && (
+        {!hasAccess && isSelectedToday && (
           <div className="card border-monaco-red/20 bg-monaco-red/5 text-center py-5">
             <p className="text-monaco-white text-sm font-medium mb-1">
               Acceso no activado
@@ -96,19 +101,36 @@ export default function MatchesPage() {
           </div>
         )}
 
+        {/* Aviso fecha bloqueada */}
+        {!isSelectedToday && matches.length > 0 && (
+          <div className="card border-white/5 bg-white/3 flex items-center gap-3 py-3">
+            <Lock size={16} className="text-monaco-silver/40 flex-shrink-0" />
+            <div>
+              <p className="text-monaco-silver text-xs font-medium">
+                Solo puedes apostar el día del partido
+              </p>
+              <p className="text-monaco-silver/50 text-[10px] mt-0.5">
+                Vuelve el {format(date, "d 'de' MMMM", { locale: es })} para apostar estos partidos
+              </p>
+            </div>
+          </div>
+        )}
+
         {isLoading && <LoadingScreen />}
 
         {/* Partidos disponibles */}
         {!isLoading && upcoming.length > 0 && (
           <div>
-            <p className="section-label">Disponibles</p>
+            <p className="section-label">
+              {isSelectedToday ? 'Disponibles hoy' : 'Próximos partidos'}
+            </p>
             <div className="space-y-3">
               {upcoming.map(match => (
                 <MatchCard
                   key={match.id}
                   match={match}
                   existingBet={betsByMatch[match.id]}
-                  canBet={hasAccess && match.betting_open}
+                  canBet={canBetToday && match.betting_open}
                   tableNumber={session?.table_number}
                 />
               ))}
@@ -142,7 +164,7 @@ export default function MatchesPage() {
               Sin partidos este día
             </p>
             <p className="text-monaco-silver text-xs">
-              Navega entre fechas para ver los partidos
+              Navega entre fechas para ver el calendario
             </p>
           </div>
         )}

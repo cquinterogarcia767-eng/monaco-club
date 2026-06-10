@@ -65,19 +65,20 @@ export default function PrizesPage() {
 
       <div className="px-4 space-y-5">
 
-        {/* Cómo funciona */}
+        {/* Cómo ganar */}
         <div className="card border-white/5 space-y-3">
           <p className="section-label flex items-center gap-2">
             <Trophy size={12} /> Cómo ganar
           </p>
           <div className="space-y-2">
             {[
-              { pts: '1 pt',  desc: 'Aciertas el resultado (gana, empata, pierde)' },
-              { pts: '3 pts', desc: 'Aciertas el marcador exacto' },
-              { pts: '🏆',    desc: 'Más puntos al final del Mundial = Premio Mayor' },
+              { pts: '1 pt',  desc: 'Vas al local y apuestas cualquier marcador'      },
+              { pts: '3 pts', desc: 'Aciertas el resultado — quién gana o empata'     },
+              { pts: '5 pts', desc: 'Aciertas el marcador exacto del partido'         },
+              { pts: '🏆',    desc: 'Más puntos al final del Mundial = Premio Mayor'  },
             ].map(({ pts, desc }) => (
               <div key={pts} className="flex items-start gap-3">
-                <span className="text-monaco-red text-xs font-display w-10 flex-shrink-0 pt-0.5">
+                <span className="text-monaco-red text-xs font-display w-12 flex-shrink-0 pt-0.5">
                   {pts}
                 </span>
                 <span className="text-monaco-silver text-xs leading-relaxed">{desc}</span>
@@ -86,13 +87,14 @@ export default function PrizesPage() {
           </div>
         </div>
 
-        {/* Premios pendientes */}
+        {/* Cargando */}
         {isLoading && (
           <div className="card text-center py-8">
             <p className="text-monaco-silver text-sm">Cargando...</p>
           </div>
         )}
 
+        {/* Sin premios */}
         {!isLoading && pending.length === 0 && claimed.length === 0 && (
           <div className="card text-center py-10">
             <Trophy size={32} className="text-monaco-silver/20 mx-auto mb-3" />
@@ -105,6 +107,7 @@ export default function PrizesPage() {
           </div>
         )}
 
+        {/* Por reclamar */}
         {pending.length > 0 && (
           <div>
             <p className="section-label">Por reclamar</p>
@@ -116,6 +119,7 @@ export default function PrizesPage() {
           </div>
         )}
 
+        {/* Ya reclamados */}
         {claimed.length > 0 && (
           <div>
             <p className="section-label">Ya reclamados</p>
@@ -126,6 +130,7 @@ export default function PrizesPage() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   )
@@ -153,7 +158,8 @@ function PrizeCard({ prize, claimed }) {
           <p className="text-monaco-silver text-xs mt-0.5">{config.desc}</p>
           {prize.matches && (
             <p className="text-monaco-silver/50 text-[10px] mt-1">
-              {prize.matches.home_flag} {prize.matches.home_team} vs {prize.matches.away_flag} {prize.matches.away_team}
+              {prize.matches.home_flag} {prize.matches.home_team} vs{' '}
+              {prize.matches.away_flag} {prize.matches.away_team}
             </p>
           )}
         </div>

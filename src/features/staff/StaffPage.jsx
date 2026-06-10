@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Html5Qrcode }    from 'html5-qrcode'
 import toast              from 'react-hot-toast'
 import LoadingScreen      from '@/components/ui/LoadingScreen'
+import { useSignOut } from '@/hooks/useSignOut'
 import {
   QrCode, X, CheckCircle, DoorOpen,
   Users, Circle, LogOut
@@ -57,6 +58,7 @@ export default function StaffPage() {
   const [selectedTable, setSelectedTable] = useState(null)
   const [closingTable, setClosingTable]   = useState(null)
   const scannerRef = useRef(null)
+  const signOut = useSignOut()
 
   const { data: tables   = [], isLoading: lt } = useQuery({
     queryKey: ['tables'],   queryFn: getTables,         refetchInterval: 5000
@@ -157,7 +159,7 @@ export default function StaffPage() {
             </p>
           </div>
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={signOut}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
                        bg-white/5 border border-white/10 text-monaco-silver text-xs">
             <LogOut size={12} /> Salir
