@@ -90,29 +90,53 @@ export default function StaffPage() {
     onError: (e) => toast.error(e.message)
   })
 
-  async function startScanner() {
-    setScanning(true)
-    setTimeout(async () => {
-      try {
-        const scanner = new Html5Qrcode('qr-reader')
-        scannerRef.current = scanner
-        await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
-          async (text) => {
-            await scanner.stop()
-            scannerRef.current = null
-            setScanning(false)
-            await handleQRResult(text)
-          },
-          () => {}
-        )
-      } catch {
-        toast.error('No se pudo acceder a la cámara')
+ async function startScanner() {
+  setScanning(true)
+  // Esperar más tiempo para que el DOM renderice el div
+  setTimeout(async () => {
+    try {
+      const qrReader = document.getElementById('qr-reader')
+      if (!qrReader) {
+        toast.error('Error iniciando escáner')
         setScanning(false)
+        return
       }
-    }, 300)
-  }
+
+      const scanner = new Html5Qrcode('qr-reader')
+      scannerRef.current = scanner
+
+      const cameras = await Html5Qrcode.getCameras()
+      if (!cameras || cameras.length === 0) {
+        toast.error('No se encontró cámara')
+        setScanning(false)
+        return
+      }
+
+      // Usar la cámara trasera si existe
+      const cameraId = cameras.find(c =>
+        c.label.toLowerCase().includes('back') ||
+        c.label.toLowerCase().includes('rear') ||
+        c.label.toLowerCase().includes('trasera')
+      )?.id ?? cameras[cameras.length - 1].id
+
+      await scanner.start(
+        cameraId,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        async (text) => {
+          await scanner.stop()
+          scannerRef.current = null
+          setScanning(false)
+          await handleQRResult(text)
+        },
+        () => {}
+      )
+    } catch (e) {
+      console.error('Scanner error:', e)
+      toast.error('No se pudo acceder a la cámara: ' + e.message)
+      setScanning(false)
+    }
+  }, 500)
+}
 
   async function stopScanner() {
     try {
@@ -216,9 +240,12 @@ export default function StaffPage() {
               </p>
             </div>
 
-            <div id="qr-reader"
-              className="w-full max-w-xs rounded-2xl overflow-hidden
-                         border-2 border-monaco-red/40" />
+           <div
+  id="qr-reader"
+  style={{ width: '100%', minHeight: '300px' }}
+  className="w-full max-w-xs rounded-2xl overflow-hidden
+             border-2 border-monaco-red/40"
+/>
 
             <button onClick={stopScanner}
               className="flex items-center gap-2 px-8 py-3 bg-white/10
