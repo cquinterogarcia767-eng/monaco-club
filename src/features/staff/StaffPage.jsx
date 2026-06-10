@@ -2,16 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuthStore }   from '@/store/authStore'
 import { supabase }       from '@/lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Html5Qrcode }    from 'html5-qrcode'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 import toast              from 'react-hot-toast'
 import LoadingScreen      from '@/components/ui/LoadingScreen'
-import { useSignOut } from '@/hooks/useSignOut'
+import { useSignOut }     from '@/hooks/useSignOut'
 import {
   QrCode, X, CheckCircle, DoorOpen,
-  Users, Circle, LogOut
+  Circle, LogOut
 } from 'lucide-react'
 
-// ── Servicios ──────────────────────────────────────
 const getToday = () => new Date().toISOString().split('T')[0]
 
 async function getTables() {
@@ -49,7 +48,6 @@ async function closeTable({ tableNumber, closedBy }) {
   if (error) throw error
 }
 
-// ── Componente ─────────────────────────────────────
 export default function StaffPage() {
   const { user, profile }  = useAuthStore()
   const qc                 = useQueryClient()
@@ -58,7 +56,7 @@ export default function StaffPage() {
   const [selectedTable, setSelectedTable] = useState(null)
   const [closingTable, setClosingTable]   = useState(null)
   const scannerRef = useRef(null)
-  const signOut = useSignOut()
+  const signOut    = useSignOut()
 
   const { data: tables   = [], isLoading: lt } = useQuery({
     queryKey: ['tables'],   queryFn: getTables,         refetchInterval: 5000
@@ -90,58 +88,49 @@ export default function StaffPage() {
     onError: (e) => toast.error(e.message)
   })
 
- async function startScanner() {
-  setScanning(true)
-  // Esperar más tiempo para que el DOM renderice el div
-  setTimeout(async () => {
-    try {
-      const qrReader = document.getElementById('qr-reader')
-      if (!qrReader) {
-        toast.error('Error iniciando escáner')
-        setScanning(false)
-        return
-      }
+  // Iniciar escáner con zxing
+  useEffect(() => {
+    if (!scanning) return
 
-      const scanner = new Html5Qrcode('qr-reader')
-      scannerRef.current = scanner
+    const codeReader = new BrowserMultiFormatReader()
+    scannerRef.current = codeReader
 
-      const cameras = await Html5Qrcode.getCameras()
-      if (!cameras || cameras.length === 0) {
-        toast.error('No se encontró cámara')
-        setScanning(false)
-        return
-      }
-
-      // Usar la cámara trasera si existe
-      const cameraId = cameras.find(c =>
-        c.label.toLowerCase().includes('back') ||
-        c.label.toLowerCase().includes('rear') ||
-        c.label.toLowerCase().includes('trasera')
-      )?.id ?? cameras[cameras.length - 1].id
-
-      await scanner.start(
-        cameraId,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (text) => {
-          await scanner.stop()
+    codeReader.decodeFromConstraints(
+      {
+        audio: false,
+        video: {
+          facingMode: 'environment',
+          width:  { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      },
+      'video-preview',
+      async (result, error) => {
+        if (result) {
+          try { codeReader.reset() } catch {}
           scannerRef.current = null
           setScanning(false)
-          await handleQRResult(text)
-        },
-        () => {}
-      )
-    } catch (e) {
-      console.error('Scanner error:', e)
+          await handleQRResult(result.getText())
+        }
+      }
+    ).catch(e => {
       toast.error('No se pudo acceder a la cámara: ' + e.message)
       setScanning(false)
-    }
-  }, 500)
-}
+    })
 
-  async function stopScanner() {
+    return () => {
+      try { codeReader.reset() } catch {}
+    }
+  }, [scanning])
+
+  function startScanner() {
+    setScanning(true)
+  }
+
+  function stopScanner() {
     try {
       if (scannerRef.current) {
-        await scannerRef.current.stop()
+        scannerRef.current.reset()
         scannerRef.current = null
       }
     } catch {}
@@ -156,12 +145,9 @@ export default function StaffPage() {
       .single()
     if (error || !data) return toast.error('QR inválido o usuario no encontrado')
     setScannedUser(data)
-    // Auto-seleccionar primera mesa libre
     const freeTable = tables.find(t => !t.is_active)
     if (freeTable) setSelectedTable(freeTable.table_number)
   }
-
-  useEffect(() => { return () => { stopScanner() } }, [])
 
   if (lt || ls) return <LoadingScreen />
 
@@ -182,8 +168,7 @@ export default function StaffPage() {
               {profile?.full_name} · Mónaco Club
             </p>
           </div>
-          <button
-            onClick={signOut}
+          <button onClick={signOut}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
                        bg-white/5 border border-white/10 text-monaco-silver text-xs">
             <LogOut size={12} /> Salir
@@ -194,31 +179,24 @@ export default function StaffPage() {
 
       <div className="px-4 space-y-4">
 
-        {/* Resumen rápido */}
+        {/* Resumen */}
         <div className="grid grid-cols-3 gap-2">
           <div className="card text-center border-monaco-red/30 bg-monaco-red/5">
             <p className="text-2xl font-display text-monaco-red">{activeTables.length}</p>
-            <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">
-              Ocupadas
-            </p>
+            <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">Ocupadas</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-display text-monaco-white">{freeTables.length}</p>
-            <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">
-              Libres
-            </p>
+            <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">Libres</p>
           </div>
           <div className="card text-center">
             <p className="text-2xl font-display text-monaco-white">{sessions.length}</p>
-            <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">
-              Clientes
-            </p>
+            <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">Clientes</p>
           </div>
         </div>
 
-        {/* Botón escanear QR */}
-        <button
-          onClick={startScanner}
+        {/* Botón escanear */}
+        <button onClick={startScanner}
           className="w-full flex items-center justify-center gap-3 py-5
                      bg-monaco-red rounded-2xl text-white font-medium
                      tracking-wide active:scale-95 transition-all shadow-lg
@@ -229,9 +207,9 @@ export default function StaffPage() {
 
         {/* Modal escáner */}
         {scanning && (
-          <div className="fixed inset-0 bg-black/95 z-50 flex flex-col
-                          items-center justify-center gap-5 px-6">
-            <div className="text-center">
+          <div className="fixed inset-0 bg-black z-50 flex flex-col
+                          items-center justify-center gap-5">
+            <div className="text-center px-6">
               <p className="font-display text-xl text-monaco-white mb-1">
                 Escanear QR
               </p>
@@ -240,12 +218,24 @@ export default function StaffPage() {
               </p>
             </div>
 
-           <div
-  id="qr-reader"
-  style={{ width: '100%', minHeight: '300px' }}
-  className="w-full max-w-xs rounded-2xl overflow-hidden
-             border-2 border-monaco-red/40"
-/>
+            <div className="relative w-full max-w-sm px-6">
+              <video
+                id="video-preview"
+                className="w-full rounded-2xl"
+                style={{ minHeight: '300px', background: '#000' }}
+              />
+              {/* Marco de escaneo */}
+              <div className="absolute inset-6 rounded-2xl pointer-events-none">
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2
+                                border-monaco-red rounded-tl-xl" />
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2
+                                border-monaco-red rounded-tr-xl" />
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2
+                                border-monaco-red rounded-bl-xl" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2
+                                border-monaco-red rounded-br-xl" />
+              </div>
+            </div>
 
             <button onClick={stopScanner}
               className="flex items-center gap-2 px-8 py-3 bg-white/10
@@ -255,16 +245,13 @@ export default function StaffPage() {
           </div>
         )}
 
-        {/* Usuario escaneado — seleccionar mesa */}
+        {/* Usuario escaneado */}
         {scannedUser && (
-          <div className="card border-green-500/30 bg-green-500/5 space-y-4
-                          animate-fade-up">
-            {/* Info cliente */}
+          <div className="card border-green-500/30 bg-green-500/5 space-y-4 animate-fade-up">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-monaco-red/20
-                              border-2 border-monaco-red/30 flex items-center
-                              justify-center text-monaco-red font-display text-lg
-                              flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-monaco-red/20 border-2
+                              border-monaco-red/30 flex items-center justify-center
+                              text-monaco-red font-display text-lg flex-shrink-0">
                 {scannedUser.avatar_url
                   ? <img src={scannedUser.avatar_url}
                       className="w-full h-full rounded-full object-cover" />
@@ -281,10 +268,8 @@ export default function StaffPage() {
               <CheckCircle size={22} className="text-green-400 flex-shrink-0" />
             </div>
 
-            {/* Seleccionar mesa */}
             <div>
-              <p className="text-[10px] text-monaco-silver tracking-widest
-                            uppercase mb-2">
+              <p className="text-[10px] text-monaco-silver tracking-widest uppercase mb-2">
                 Asignar a mesa
               </p>
               {freeTables.length === 0 ? (
@@ -297,8 +282,7 @@ export default function StaffPage() {
                     <button key={t.id}
                       onClick={() => setSelectedTable(t.table_number)}
                       className={`aspect-square rounded-xl text-sm font-display
-                                  font-bold flex items-center justify-center
-                                  transition-all
+                                  font-bold flex items-center justify-center transition-all
                         ${selectedTable === t.table_number
                           ? 'bg-monaco-red text-white scale-105'
                           : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
@@ -309,7 +293,6 @@ export default function StaffPage() {
               )}
             </div>
 
-            {/* Acciones */}
             <div className="flex gap-2">
               <button
                 onClick={() => { setScannedUser(null); setSelectedTable(null) }}
@@ -341,9 +324,7 @@ export default function StaffPage() {
             </p>
             <div className="space-y-3">
               {activeTables.map(table => {
-                const tableUsers = sessions.filter(
-                  s => s.table_number === table.table_number
-                )
+                const tableUsers = sessions.filter(s => s.table_number === table.table_number)
                 return (
                   <div key={table.id} className="card border-monaco-red/20">
                     <div className="flex items-center justify-between mb-2">
@@ -361,20 +342,16 @@ export default function StaffPage() {
                           }
                         </p>
                       </div>
-                      <button
-                        onClick={() => setClosingTable(table.table_number)}
-                        className="flex items-center gap-1.5 px-3 py-1.5
-                                   rounded-lg bg-white/5 border border-white/10
-                                   text-monaco-silver text-xs active:bg-white/10">
+                      <button onClick={() => setClosingTable(table.table_number)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                                   bg-white/5 border border-white/10 text-monaco-silver
+                                   text-xs active:bg-white/10">
                         <DoorOpen size={12} /> Cerrar mesa
                       </button>
                     </div>
-
-                    {/* Clientes en la mesa */}
                     {tableUsers.map(session => (
                       <div key={session.id}
-                        className="flex items-center gap-2.5 py-2
-                                   border-t border-white/5">
+                        className="flex items-center gap-2.5 py-2 border-t border-white/5">
                         <div className="w-8 h-8 rounded-full bg-monaco-red/20
                                         border border-monaco-red/30 flex items-center
                                         justify-center text-xs text-monaco-red flex-shrink-0">
@@ -419,9 +396,7 @@ export default function StaffPage() {
                   <span className="text-monaco-silver font-display text-lg leading-none">
                     {t.table_number}
                   </span>
-                  <span className="text-[8px] text-green-400 uppercase tracking-wide">
-                    libre
-                  </span>
+                  <span className="text-[8px] text-green-400 uppercase tracking-wide">libre</span>
                 </div>
               ))}
             </div>
@@ -430,20 +405,15 @@ export default function StaffPage() {
 
         {tables.length === 0 && (
           <div className="card text-center py-10">
-            <p className="text-monaco-silver text-sm">
-              No hay mesas configuradas
-            </p>
-            <p className="text-monaco-silver/50 text-xs mt-1">
-              El administrador debe crearlas
-            </p>
+            <p className="text-monaco-silver text-sm">No hay mesas configuradas</p>
+            <p className="text-monaco-silver/50 text-xs mt-1">El administrador debe crearlas</p>
           </div>
         )}
       </div>
 
-      {/* Modal confirmar cierre */}
+      {/* Modal cerrar mesa */}
       {closingTable && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center
-                        justify-center px-6">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center px-6">
           <div className="bg-monaco-card rounded-3xl p-6 w-full max-w-xs
                           border border-white/10 space-y-4">
             <div className="text-center">
@@ -463,13 +433,9 @@ export default function StaffPage() {
                 Cancelar
               </button>
               <button
-                onClick={() => closeMutation.mutate({
-                  tableNumber: closingTable,
-                  closedBy:    user.id
-                })}
+                onClick={() => closeMutation.mutate({ tableNumber: closingTable, closedBy: user.id })}
                 disabled={closeMutation.isPending}
-                className="flex-1 py-3 bg-monaco-red rounded-xl text-white
-                           text-sm font-medium">
+                className="flex-1 py-3 bg-monaco-red rounded-xl text-white text-sm font-medium">
                 {closeMutation.isPending ? 'Cerrando...' : 'Confirmar'}
               </button>
             </div>
