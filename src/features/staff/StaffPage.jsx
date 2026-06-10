@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useAuthStore }   from '@/store/authStore'
 import { supabase }       from '@/lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BrowserMultiFormatReader } from '@zxing/browser'
 import toast              from 'react-hot-toast'
 import LoadingScreen      from '@/components/ui/LoadingScreen'
 import { useSignOut }     from '@/hooks/useSignOut'
 import {
-  QrCode, X, CheckCircle, DoorOpen,
+  Search, CheckCircle, DoorOpen,
   Circle, LogOut
 } from 'lucide-react'
 
@@ -51,12 +50,13 @@ async function closeTable({ tableNumber, closedBy }) {
 export default function StaffPage() {
   const { user, profile }  = useAuthStore()
   const qc                 = useQueryClient()
-  const [scanning, setScanning]           = useState(false)
-  const [scannedUser, setScannedUser]     = useState(null)
+  const [searchQuery, setSearchQuery]     = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching]         = useState(false)
+  const [selectedUser, setSelectedUser]   = useState(null)
   const [selectedTable, setSelectedTable] = useState(null)
   const [closingTable, setClosingTable]   = useState(null)
-  const scannerRef = useRef(null)
-  const signOut    = useSignOut()
+  const signOut = useSignOut()
 
   const { data: tables   = [], isLoading: lt } = useQuery({
     queryKey: ['tables'],   queryFn: getTables,         refetchInterval: 5000
@@ -71,7 +71,7 @@ export default function StaffPage() {
       toast.success('¡Mesa activada! El cliente ya puede apostar')
       qc.invalidateQueries({ queryKey: ['tables']   })
       qc.invalidateQueries({ queryKey: ['sessions'] })
-      setScannedUser(null)
+      setSelectedUser(null)
       setSelectedTable(null)
     },
     onError: (e) => toast.error(e.message)
@@ -88,63 +88,26 @@ export default function StaffPage() {
     onError: (e) => toast.error(e.message)
   })
 
-  // Iniciar escáner con zxing
-  useEffect(() => {
-    if (!scanning) return
-
-    const codeReader = new BrowserMultiFormatReader()
-    scannerRef.current = codeReader
-
-    codeReader.decodeFromConstraints(
-      {
-        audio: false,
-        video: {
-          facingMode: 'environment',
-          width:  { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      },
-      'video-preview',
-      async (result, error) => {
-        if (result) {
-          try { codeReader.reset() } catch {}
-          scannerRef.current = null
-          setScanning(false)
-          await handleQRResult(result.getText())
-        }
-      }
-    ).catch(e => {
-      toast.error('No se pudo acceder a la cámara: ' + e.message)
-      setScanning(false)
-    })
-
-    return () => {
-      try { codeReader.reset() } catch {}
+  async function searchUsers(query) {
+    if (!query.trim()) {
+      setSearchResults([])
+      return
     }
-  }, [scanning])
-
-  function startScanner() {
-    setScanning(true)
-  }
-
-  function stopScanner() {
-    try {
-      if (scannerRef.current) {
-        scannerRef.current.reset()
-        scannerRef.current = null
-      }
-    } catch {}
-    setScanning(false)
-  }
-
-  async function handleQRResult(userId) {
-    const { data, error } = await supabase
+    setSearching(true)
+    const { data } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, total_points, total_correct')
-      .eq('id', userId)
-      .single()
-    if (error || !data) return toast.error('QR inválido o usuario no encontrado')
-    setScannedUser(data)
+      .eq('role', 'user')
+      .ilike('full_name', `%${query}%`)
+      .limit(6)
+    setSearchResults(data ?? [])
+    setSearching(false)
+  }
+
+  function selectUser(u) {
+    setSelectedUser(u)
+    setSearchQuery('')
+    setSearchResults([])
     const freeTable = tables.find(t => !t.is_active)
     if (freeTable) setSelectedTable(freeTable.table_number)
   }
@@ -195,74 +158,79 @@ export default function StaffPage() {
           </div>
         </div>
 
-        {/* Botón escanear */}
-        <button onClick={startScanner}
-          className="w-full flex items-center justify-center gap-3 py-5
-                     bg-monaco-red rounded-2xl text-white font-medium
-                     tracking-wide active:scale-95 transition-all shadow-lg
-                     shadow-monaco-red/20">
-          <QrCode size={22} />
-          Escanear QR del cliente
-        </button>
+        {/* Buscar cliente para activar */}
+        {!selectedUser && (
+          <div className="card border-monaco-red/20 space-y-3">
+            <p className="text-monaco-white text-sm font-medium flex items-center gap-2">
+              <Search size={14} className="text-monaco-red" />
+              Activar cliente
+            </p>
+            <input
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value)
+                searchUsers(e.target.value)
+              }}
+              placeholder="Buscar cliente por nombre..."
+              className="w-full bg-monaco-black border border-white/10 rounded-xl
+                         px-3 py-2.5 text-sm text-monaco-white placeholder-monaco-silver/40
+                         focus:outline-none focus:border-monaco-red/50"
+            />
 
-        {/* Modal escáner */}
-        {scanning && (
-          <div className="fixed inset-0 bg-black z-50 flex flex-col
-                          items-center justify-center gap-5">
-            <div className="text-center px-6">
-              <p className="font-display text-xl text-monaco-white mb-1">
-                Escanear QR
-              </p>
-              <p className="text-monaco-silver text-sm">
-                Apunta la cámara al QR del cliente
-              </p>
-            </div>
+            {searching && (
+              <p className="text-monaco-silver text-xs text-center py-2">Buscando...</p>
+            )}
 
-            <div className="relative w-full max-w-sm px-6">
-              <video
-                id="video-preview"
-                className="w-full rounded-2xl"
-                style={{ minHeight: '300px', background: '#000' }}
-              />
-              {/* Marco de escaneo */}
-              <div className="absolute inset-6 rounded-2xl pointer-events-none">
-                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2
-                                border-monaco-red rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2
-                                border-monaco-red rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2
-                                border-monaco-red rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2
-                                border-monaco-red rounded-br-xl" />
+            {searchResults.length > 0 && (
+              <div className="space-y-2">
+                {searchResults.map(u => (
+                  <button key={u.id} onClick={() => selectUser(u)}
+                    className="w-full flex items-center gap-3 p-2.5 rounded-xl
+                               bg-white/5 border border-white/10 active:bg-white/10 text-left">
+                    <div className="w-9 h-9 rounded-full bg-monaco-red/20 border border-monaco-red/30
+                                    flex items-center justify-center text-monaco-red text-sm flex-shrink-0">
+                      {u.avatar_url
+                        ? <img src={u.avatar_url} className="w-full h-full rounded-full object-cover" />
+                        : u.full_name?.[0] ?? '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-monaco-white text-sm font-medium truncate">{u.full_name}</p>
+                      <p className="text-monaco-silver text-xs">
+                        {u.total_points} pts · {u.total_correct} aciertos
+                      </p>
+                    </div>
+                    <CheckCircle size={16} className="text-monaco-red/50 flex-shrink-0" />
+                  </button>
+                ))}
               </div>
-            </div>
+            )}
 
-            <button onClick={stopScanner}
-              className="flex items-center gap-2 px-8 py-3 bg-white/10
-                         rounded-xl text-monaco-white text-sm">
-              <X size={16} /> Cancelar
-            </button>
+            {searchQuery && !searching && searchResults.length === 0 && (
+              <p className="text-monaco-silver text-xs text-center py-2">
+                No se encontraron clientes con ese nombre
+              </p>
+            )}
           </div>
         )}
 
-        {/* Usuario escaneado */}
-        {scannedUser && (
+        {/* Cliente seleccionado — asignar mesa */}
+        {selectedUser && (
           <div className="card border-green-500/30 bg-green-500/5 space-y-4 animate-fade-up">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-monaco-red/20 border-2
                               border-monaco-red/30 flex items-center justify-center
                               text-monaco-red font-display text-lg flex-shrink-0">
-                {scannedUser.avatar_url
-                  ? <img src={scannedUser.avatar_url}
+                {selectedUser.avatar_url
+                  ? <img src={selectedUser.avatar_url}
                       className="w-full h-full rounded-full object-cover" />
-                  : scannedUser.full_name?.[0] ?? '?'}
+                  : selectedUser.full_name?.[0] ?? '?'}
               </div>
               <div className="flex-1">
                 <p className="text-monaco-white font-medium">
-                  {scannedUser.full_name ?? 'Cliente'}
+                  {selectedUser.full_name ?? 'Cliente'}
                 </p>
                 <p className="text-monaco-silver text-xs">
-                  {scannedUser.total_points} pts · {scannedUser.total_correct} aciertos
+                  {selectedUser.total_points} pts · {selectedUser.total_correct} aciertos
                 </p>
               </div>
               <CheckCircle size={22} className="text-green-400 flex-shrink-0" />
@@ -295,14 +263,14 @@ export default function StaffPage() {
 
             <div className="flex gap-2">
               <button
-                onClick={() => { setScannedUser(null); setSelectedTable(null) }}
+                onClick={() => { setSelectedUser(null); setSelectedTable(null) }}
                 className="flex-1 py-3 bg-white/5 border border-white/10
                            rounded-xl text-monaco-silver text-sm">
                 Cancelar
               </button>
               <button
                 onClick={() => activateMutation.mutate({
-                  userId:      scannedUser.id,
+                  userId:      selectedUser.id,
                   tableNumber: selectedTable,
                   activatedBy: user.id,
                 })}
