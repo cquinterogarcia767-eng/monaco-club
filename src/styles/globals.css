@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply bg-monaco-black text-monaco-white; }
+  body { @apply font-body antialiased; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply w-full py-3 bg-monaco-red text-white font-body font-medium
+           rounded-xl tracking-wide transition-all active:scale-95;
+  }
+  .btn-ghost {
+    @apply w-full py-3 border border-monaco-red text-monaco-red font-body
+           font-medium rounded-xl tracking-wide transition-all active:scale-95;
+  }
+  .card {
+    @apply bg-monaco-card rounded-2xl border border-white/5 p-4;
+  }
+  .section-label {
+    @apply text-xs text-monaco-silver tracking-widest uppercase mb-3;
+  }
+}
+
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
