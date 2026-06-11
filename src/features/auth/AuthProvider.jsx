@@ -7,30 +7,25 @@ export default function AuthProvider({ children }) {
   const initialized = useRef(false)
 
   useEffect(() => {
-    // Solo inicializar una vez
     if (initialized.current) return
     initialized.current = true
 
     async function init() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('Session:', session?.user?.email)
-
         setSession(session)
         setUser(session?.user ?? null)
 
         if (session?.user) {
-          const { data: profile } = await supabase
+          const { data } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single()
-
-          console.log('Profile:', profile)
-          if (profile) setProfile(profile)
+            .maybeSingle()
+          if (data) setProfile(data)
         }
       } catch (e) {
-        console.error('Auth init error:', e)
+        // silently fail
       } finally {
         setLoading(false)
       }
@@ -40,22 +35,23 @@ export default function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event)
         if (event === 'SIGNED_OUT') {
           reset()
-          setLoading(false)
           return
         }
-        if (event === 'SIGNED_IN' && session?.user) {
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setSession(session)
-          setUser(session.user)
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-          console.log('Profile on signin:', profile)
-          if (profile) setProfile(profile)
+          setUser(session?.user ?? null)
+
+          if (session?.user) {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle()
+            if (data) setProfile(data)
+          }
           setLoading(false)
         }
       }

@@ -104,13 +104,13 @@ export default function StaffPage() {
     setSearching(false)
   }
 
-  function selectUser(u) {
-    setSelectedUser(u)
-    setSearchQuery('')
-    setSearchResults([])
-    const freeTable = tables.find(t => !t.is_active)
-    if (freeTable) setSelectedTable(freeTable.table_number)
-  }
+ function selectUser(u) {
+  setSelectedUser(u)
+  setSearchQuery('')
+  setSearchResults([])
+  // Seleccionar primera mesa disponible (libre o ya ocupada)
+  if (tables.length > 0) setSelectedTable(tables[0].table_number)
+}
 
   if (lt || ls) return <LoadingScreen />
 
@@ -237,29 +237,32 @@ export default function StaffPage() {
             </div>
 
             <div>
-              <p className="text-[10px] text-monaco-silver tracking-widest uppercase mb-2">
-                Asignar a mesa
-              </p>
-              {freeTables.length === 0 ? (
-                <p className="text-monaco-silver text-sm text-center py-2">
-                  Todas las mesas están ocupadas
-                </p>
-              ) : (
-                <div className="grid grid-cols-5 gap-2">
-                  {freeTables.map(t => (
-                    <button key={t.id}
-                      onClick={() => setSelectedTable(t.table_number)}
-                      className={`aspect-square rounded-xl text-sm font-display
-                                  font-bold flex items-center justify-center transition-all
-                        ${selectedTable === t.table_number
-                          ? 'bg-monaco-red text-white scale-105'
-                          : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
-                      {t.table_number}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+  <p className="text-[10px] text-monaco-silver tracking-widest uppercase mb-2">
+    Asignar a mesa
+  </p>
+  <div className="grid grid-cols-5 gap-2">
+    {tables.map(t => {
+      const usersInTable = sessions.filter(s => s.table_number === t.table_number)
+      return (
+        <button key={t.id}
+          onClick={() => setSelectedTable(t.table_number)}
+          className={`aspect-square rounded-xl text-sm font-display
+                      font-bold flex flex-col items-center justify-center
+                      gap-0.5 transition-all
+            ${selectedTable === t.table_number
+              ? 'bg-monaco-red text-white scale-105'
+              : t.is_active
+                ? 'bg-monaco-red/10 text-monaco-red border border-monaco-red/30'
+                : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
+          <span>{t.table_number}</span>
+          {usersInTable.length > 0 && (
+            <span className="text-[8px] opacity-70">{usersInTable.length}👤</span>
+          )}
+        </button>
+      )
+    })}
+  </div>
+</div>
 
             <div className="flex gap-2">
               <button

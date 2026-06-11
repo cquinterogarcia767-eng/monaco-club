@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom'
-import { supabase }    from '@/lib/supabase'
+import { useNavigate }  from 'react-router-dom'
+import { supabase }     from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 
 export function useSignOut() {
@@ -7,8 +7,12 @@ export function useSignOut() {
   const reset    = useAuthStore(s => s.reset)
 
   async function signOut() {
-    await supabase.auth.signOut()
+    // Limpiar sesión completamente
+    await supabase.auth.signOut({ scope: 'global' })
     reset()
+    // Limpiar cualquier caché del navegador
+    localStorage.clear()
+    sessionStorage.clear()
     navigate('/login', { replace: true })
   }
 

@@ -3,7 +3,7 @@ import { supabase }    from '@/lib/supabase'
 import toast           from 'react-hot-toast'
 
 // ── Logo real del cliente (activo) ──
-import LogoReal from '@/assets/Logo.png'
+import LogoReal from '@/assets/PERFIL-MONACO.png'
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)

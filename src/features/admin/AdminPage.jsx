@@ -6,21 +6,19 @@ import { supabase }        from '@/lib/supabase'
 import { getMatches }      from '@/features/matches/matchesService'
 import LoadingScreen       from '@/components/ui/LoadingScreen'
 import toast               from 'react-hot-toast'
+import { useSignOut }      from '@/hooks/useSignOut'
 import {
   Trophy, Radio, Play, Users, UserPlus, Trash2,
   Gift, Crown, Plus, Zap, ChevronRight,
   LayoutGrid, Settings, BarChart3, Lock, Unlock,
-  DoorOpen, Star, X, Activity, CheckCircle
+  DoorOpen, Star, X, Activity, CheckCircle, LogOut
 } from 'lucide-react'
 
 const getToday = () => new Date().toISOString().split('T')[0]
 
 async function setMatchLive(matchId) {
   const { error } = await supabase
-    .rpc('set_match_live_with_window', {
-      p_match_id: matchId,
-      p_minutes:  15
-    })
+    .rpc('set_match_live_with_window', { p_match_id: matchId, p_minutes: 15 })
   if (error) throw error
 }
 async function finishMatch({ matchId, homeScore, awayScore }) {
@@ -145,6 +143,7 @@ export default function AdminPage() {
   const tab = searchParams.get('tab') || 'dashboard'
   function setTab(t) { setSearchParams({ tab: t }) }
 
+  const signOut = useSignOut()
   const [scores, setScores]                 = useState({})
   const [liveScores, setLiveScores]         = useState({})
   const [waiterEmail, setWaiterEmail]       = useState('')
@@ -209,20 +208,12 @@ export default function AdminPage() {
   })
 
   function handleFinish(matchId) {
-  // Buscar en scores o liveScores
-  const s = scores[matchId] ?? liveScores[matchId]
-
-  // Si no hay scores manuales, usar el marcador actual del partido
-  const match = matches.find(m => m.id === matchId)
-  const home  = s?.home !== undefined && s?.home !== ''
-    ? Number(s.home)
-    : match?.home_score ?? 0
-  const away  = s?.away !== undefined && s?.away !== ''
-    ? Number(s.away)
-    : match?.away_score ?? 0
-
-  finishMut.mutate({ matchId, homeScore: home, awayScore: away })
-}
+    const s = scores[matchId] ?? liveScores[matchId]
+    const match = matches.find(m => m.id === matchId)
+    const home  = s?.home !== undefined && s?.home !== '' ? Number(s.home) : match?.home_score ?? 0
+    const away  = s?.away !== undefined && s?.away !== '' ? Number(s.away) : match?.away_score ?? 0
+    finishMut.mutate({ matchId, homeScore: home, awayScore: away })
+  }
 
   function handleLiveScore(matchId) {
     const s = liveScores[matchId]
@@ -236,8 +227,7 @@ export default function AdminPage() {
     if (!home_team || !away_team || !match_date) return toast.error('Completa los campos obligatorios')
     createMatchMut.mutate({
       home_team, away_team,
-      home_flag:  home_flag  || '🏳️',
-      away_flag:  away_flag  || '🏳️',
+      home_flag: home_flag || '🏳️', away_flag: away_flag || '🏳️',
       group_name: group_name || 'Amistoso',
       match_date: new Date(match_date).toISOString(),
     })
@@ -273,13 +263,45 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-monaco-black">
 
+      {/* Header con atajos y cerrar sesión */}
       <div className="px-6 pt-8 pb-6 border-b border-white/5">
-        <h1 className="font-display text-2xl text-monaco-white tracking-wide capitalize mb-1">
-          {tab === 'dashboard' ? 'Dashboard' : tab === 'mesas' ? 'Mesas' :
-           tab === 'partidos'  ? 'Partidos'  : tab === 'premios' ? 'Premios' :
-           tab === 'usuarios'  ? 'Usuarios'  : 'Ajustes'}
-        </h1>
-        <p className="text-monaco-silver text-xs">Mónaco Club · Mundial 2026</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="font-display text-2xl text-monaco-white tracking-wide capitalize mb-1">
+              {tab === 'dashboard' ? 'Dashboard' : tab === 'mesas' ? 'Mesas' :
+               tab === 'partidos'  ? 'Partidos'  : tab === 'premios' ? 'Premios' :
+               tab === 'usuarios'  ? 'Usuarios'  : 'Ajustes'}
+            </h1>
+            <p className="text-monaco-silver text-xs">Mónaco Club · Mundial 2026</p>
+          </div>
+          <button onClick={signOut}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                       bg-white/5 border border-white/10 text-monaco-silver text-xs">
+            <LogOut size={12} /> Salir
+          </button>
+        </div>
+
+        {/* Tabs de navegación */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+          {[
+            { key: 'dashboard', label: '📊 Dashboard' },
+            { key: 'mesas',     label: '🪑 Mesas'     },
+            { key: 'partidos',  label: '⚽ Partidos'  },
+            { key: 'premios',   label: '🏆 Premios'   },
+            { key: 'usuarios',  label: '👥 Usuarios'  },
+            { key: 'ajustes',   label: '⚙️ Ajustes'  },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium
+                          transition-all whitespace-nowrap
+                ${tab === t.key
+                  ? 'bg-monaco-red text-white'
+                  : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {tab === 'dashboard' && (
           <div className="grid grid-cols-4 gap-2 mt-4">
             <KPI label="En vivo"   value={liveMatches.length}          color="green"  />
@@ -498,7 +520,6 @@ export default function AdminPage() {
                 {createMatchMut.isPending ? 'Creando...' : '+ Crear partido'}
               </button>
             </div>
-
             {liveMatches.map(match => (
               <LiveCard key={match.id} match={match} liveScore={liveScores[match.id]}
                 onScoreChange={(side, v) => setLiveScores(s => ({ ...s, [match.id]: { ...s[match.id], [side]: v } }))}
@@ -506,7 +527,6 @@ export default function AdminPage() {
                 onFinish={() => handleFinish(match.id)}
                 isPending={liveScoreMut.isPending || finishMut.isPending} />
             ))}
-
             {upcomingMatches.length > 0 && (
               <div>
                 <p className="section-label">Próximos</p>
@@ -517,7 +537,7 @@ export default function AdminPage() {
                       <button onClick={() => toggleBetMut.mutate({ matchId: match.id, open: !match.betting_open })}
                         className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-all
                           ${match.betting_open ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-monaco-silver'}`}>
-                        {match.betting_open ? <><Unlock size={8} /> Apuestas abiertas</> : <><Lock size={8} /> Apuestas cerradas</>}
+                        {match.betting_open ? <><Unlock size={8} /> Abiertas</> : <><Lock size={8} /> Cerradas</>}
                       </button>
                     </div>
                     <div className="flex items-center justify-between">
@@ -555,7 +575,6 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-
             {finishedMatches.length > 0 && (
               <div>
                 <p className="section-label">Finalizados</p>
@@ -617,10 +636,8 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-
             <NightWinnerCard onAssign={(bet) => { setAssigningPrize(bet); setPrizeType(prizeConfig[0]?.prize_type ?? 'discount_20') }} />
             <TournamentPrizeCard user={user} qc={qc} />
-
             {winners.length > 0 && (
               <div>
                 <p className="section-label flex items-center gap-2"><Crown size={12} className="text-yellow-400" /> Ganadores de apuestas hoy</p>
@@ -652,7 +669,7 @@ export default function AdminPage() {
               <p className="text-monaco-white text-sm font-medium flex items-center gap-2">
                 <UserPlus size={14} className="text-yellow-400" /> Agregar mesero
               </p>
-              <p className="text-monaco-silver text-xs leading-relaxed">El mesero debe registrarse primero en la app. Luego ingresa su email para darle acceso.</p>
+              <p className="text-monaco-silver text-xs leading-relaxed">El mesero debe registrarse primero. Luego ingresa su email.</p>
               <input value={waiterEmail} onChange={e => setWaiterEmail(e.target.value)}
                 placeholder="email@ejemplo.com" type="email"
                 className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2.5 text-sm text-monaco-white placeholder-monaco-silver/40 focus:outline-none focus:border-yellow-500/50" />
@@ -660,7 +677,7 @@ export default function AdminPage() {
             </div>
             {waiters.length > 0 && (
               <div>
-                <p className="section-label flex items-center gap-2"><Users size={12} /> Meseros activos ({waiters.length})</p>
+                <p className="section-label flex items-center gap-2"><Users size={12} /> Meseros ({waiters.length})</p>
                 {waiters.map(w => (
                   <div key={w.id} className="card flex items-center gap-3 mb-2">
                     <div className="w-9 h-9 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center text-yellow-400 font-display flex-shrink-0">
@@ -676,7 +693,7 @@ export default function AdminPage() {
               </div>
             )}
             <p className="section-label flex items-center gap-2"><Users size={12} /> Clientes ({allUsers.filter(u => u.role === 'user').length})</p>
-            {allUsers.filter(u => u.role === 'user').length === 0 && <div className="card text-center py-8"><p className="text-monaco-silver text-sm">No hay clientes registrados</p></div>}
+            {allUsers.filter(u => u.role === 'user').length === 0 && <div className="card text-center py-8"><p className="text-monaco-silver text-sm">No hay clientes</p></div>}
             {allUsers.filter(u => u.role === 'user').map((u, i) => (
               <div key={u.id} className="card flex items-center gap-3 mb-2">
                 <span className="text-monaco-silver/40 text-xs w-5 text-center flex-shrink-0">{i + 1}</span>
@@ -700,16 +717,16 @@ export default function AdminPage() {
               <InfoRow label="Torneo"        value="Mundial 2026" />
               <InfoRow label="Partidos"      value={`${matches.length} cargados`} />
               <InfoRow label="Finalizados"   value={`${finishedMatches.length}`} />
-              <InfoRow label="Jugadores"     value={`${allUsers.filter(u => u.role === 'user').length} registrados`} />
-              <InfoRow label="Meseros"       value={`${waiters.length} activos`} />
-              <InfoRow label="Mesas totales" value={`${tables.length}`} />
+              <InfoRow label="Jugadores"     value={`${allUsers.filter(u => u.role === 'user').length}`} />
+              <InfoRow label="Meseros"       value={`${waiters.length}`} />
+              <InfoRow label="Mesas"         value={`${tables.length}`} />
             </div>
             <div className="card border-red-500/20 space-y-3">
               <p className="text-red-400 text-sm font-medium">Zona de riesgo</p>
               <p className="text-monaco-silver text-xs leading-relaxed">Estas acciones afectan a todos los usuarios.</p>
               <button
                 onClick={async () => {
-                  if (!confirm('¿Cerrar TODAS las mesas activas esta noche?')) return
+                  if (!confirm('¿Cerrar TODAS las mesas?')) return
                   for (const t of activeTables) { await closeTable({ tableNumber: t.table_number, closedBy: user.id }) }
                   qc.invalidateQueries({ queryKey: ['tables'] })
                   qc.invalidateQueries({ queryKey: ['sessions'] })
@@ -729,7 +746,7 @@ export default function AdminPage() {
             <div className="text-center">
               <DoorOpen size={32} className="text-monaco-red mx-auto mb-2" />
               <p className="font-display text-lg text-monaco-white">Cerrar Mesa {closingTable}</p>
-              <p className="text-monaco-silver text-xs mt-2 leading-relaxed">Se bloquearán todos los usuarios de esta mesa y quedará disponible.</p>
+              <p className="text-monaco-silver text-xs mt-2 leading-relaxed">Se bloquearán todos los usuarios de esta mesa.</p>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setClosingTable(null)} className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-monaco-silver text-sm">Cancelar</button>
@@ -798,14 +815,11 @@ function KPI({ label, value, color }) {
       <p className={`text-2xl font-display leading-none
         ${color === 'green'  ? 'text-green-400'    :
           color === 'yellow' ? 'text-yellow-400'   :
-          color === 'silver' ? 'text-monaco-white' : 'text-monaco-red'}`}>
-        {value}
-      </p>
+          color === 'silver' ? 'text-monaco-white' : 'text-monaco-red'}`}>{value}</p>
       <p className="text-[9px] text-monaco-silver tracking-wide uppercase mt-1">{label}</p>
     </div>
   )
 }
-
 function StatCard({ label, value, accent }) {
   return (
     <div className={`card text-center ${accent ? 'border-monaco-red/30 bg-monaco-red/5' : ''}`}>
@@ -814,7 +828,6 @@ function StatCard({ label, value, accent }) {
     </div>
   )
 }
-
 function InfoRow({ label, value }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
@@ -823,7 +836,6 @@ function InfoRow({ label, value }) {
     </div>
   )
 }
-
 function LiveCard({ match, liveScore, onScoreChange, onUpdate, onFinish, isPending }) {
   return (
     <div className="card border-green-500/30 bg-green-500/5 space-y-3 mb-3">
@@ -844,7 +856,7 @@ function LiveCard({ match, liveScore, onScoreChange, onUpdate, onFinish, isPendi
       </div>
       <div className="border-t border-white/5 pt-3">
         <p className="text-[10px] text-monaco-silver uppercase tracking-wide mb-2 flex items-center gap-1">
-          <Zap size={10} className="text-yellow-400" /> Actualizar marcador en vivo
+          <Zap size={10} className="text-yellow-400" /> Actualizar marcador
         </p>
         <div className="flex items-center gap-2">
           <input type="number" min="0" max="20" value={liveScore?.home ?? ''}
@@ -869,7 +881,6 @@ function LiveCard({ match, liveScore, onScoreChange, onUpdate, onFinish, isPendi
     </div>
   )
 }
-
 function NightWinnerCard({ onAssign }) {
   const { data = [], isLoading } = useQuery({
     queryKey: ['night-ranking'],
@@ -883,21 +894,18 @@ function NightWinnerCard({ onAssign }) {
     },
     refetchInterval: 15000
   })
-
   return (
     <div className="card border-yellow-500/20 space-y-3">
       <p className="text-monaco-white font-medium text-sm flex items-center gap-2">
         <Crown size={14} className="text-yellow-400" /> Ranking de la noche
       </p>
-      <p className="text-monaco-silver text-xs">El líder al finalizar gana el premio configurado arriba.</p>
+      <p className="text-monaco-silver text-xs">El líder al finalizar gana el premio.</p>
       {isLoading && <p className="text-monaco-silver text-xs text-center py-3">Cargando...</p>}
-      {!isLoading && data.length === 0 && <p className="text-monaco-silver text-xs text-center py-3">Aún no hay apuestas esta noche</p>}
+      {!isLoading && data.length === 0 && <p className="text-monaco-silver text-xs text-center py-3">Aún no hay apuestas</p>}
       {data.map((player, i) => (
         <div key={player.id} className={`flex items-center gap-3 py-2 px-3 rounded-xl ${i === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' : ''}`}>
           <span className={`w-5 text-center font-display text-sm flex-shrink-0
-            ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-monaco-silver' : i === 2 ? 'text-amber-600' : 'text-monaco-silver/40'}`}>
-            {i + 1}
-          </span>
+            ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-monaco-silver' : i === 2 ? 'text-amber-600' : 'text-monaco-silver/40'}`}>{i + 1}</span>
           <div className="w-7 h-7 rounded-full bg-monaco-red/20 border border-monaco-red/30 flex items-center justify-center text-xs text-monaco-red flex-shrink-0">
             {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full rounded-full object-cover" /> : player.full_name?.[0] ?? '?'}
           </div>
@@ -919,12 +927,10 @@ function NightWinnerCard({ onAssign }) {
     </div>
   )
 }
-
 function TournamentPrizeCard({ user, qc }) {
   const [prizeType, setPrizeType] = useState('vip_table')
   const [prizeDesc, setPrizeDesc] = useState('')
   const [assigning, setAssigning] = useState(false)
-
   const { data: topPlayer } = useQuery({
     queryKey: ['tournament-leader'],
     queryFn: async () => {
@@ -935,7 +941,6 @@ function TournamentPrizeCard({ user, qc }) {
     },
     refetchInterval: 30000
   })
-
   const { data: existingPrize } = useQuery({
     queryKey: ['tournament-prize'],
     queryFn: async () => {
@@ -945,7 +950,6 @@ function TournamentPrizeCard({ user, qc }) {
       return data
     }
   })
-
   const assignMut = useMutation({
     mutationFn: async ({ winnerId, type, desc }) => {
       const { error } = await supabase.from('tournament_prizes').insert({
@@ -954,14 +958,9 @@ function TournamentPrizeCard({ user, qc }) {
       })
       if (error) throw error
     },
-    onSuccess: () => {
-      toast.success('¡Premio del Mundial asignado!')
-      qc.invalidateQueries({ queryKey: ['tournament-prize'] })
-      setAssigning(false)
-    },
+    onSuccess: () => { toast.success('¡Premio del Mundial asignado!'); qc.invalidateQueries({ queryKey: ['tournament-prize'] }); setAssigning(false) },
     onError: (e) => toast.error(e.message)
   })
-
   return (
     <div className="card border-yellow-400/30 bg-yellow-400/5 space-y-3">
       <p className="text-monaco-white font-medium text-sm flex items-center gap-2">
@@ -974,11 +973,11 @@ function TournamentPrizeCard({ user, qc }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-monaco-white text-sm font-medium truncate">{topPlayer.full_name ?? 'Anónimo'}</p>
-            <p className="text-monaco-silver text-xs">{topPlayer.total_correct} aciertos totales</p>
+            <p className="text-monaco-silver text-xs">{topPlayer.total_correct} aciertos</p>
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-yellow-400 font-display text-xl leading-none">{topPlayer.total_points}</p>
-            <p className="text-[10px] text-monaco-silver">pts totales</p>
+            <p className="text-[10px] text-monaco-silver">pts</p>
           </div>
         </div>
       )}
