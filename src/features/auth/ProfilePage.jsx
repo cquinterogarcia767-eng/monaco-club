@@ -137,7 +137,7 @@ export default function ProfilePage() {
 
       <div className="px-4 space-y-4">
 
-        {/* Botón QR */}
+        {/* Botón QR 
         <button
           onClick={handleShowQR}
           className="w-full flex items-center justify-center gap-3 py-4
@@ -147,7 +147,7 @@ export default function ProfilePage() {
         >
           <QrCode size={18} className="text-monaco-red" />
           Mostrar mi QR al mesero
-        </button>
+        </button>*/}
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">

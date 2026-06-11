@@ -10,6 +10,11 @@ export default function AuthProvider({ children }) {
     if (initialized.current) return
     initialized.current = true
 
+    // Timeout de seguridad — máximo 3 segundos cargando
+    const timeout = setTimeout(() => {
+      setLoading(false)
+    }, 3000)
+
     async function init() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -24,10 +29,10 @@ export default function AuthProvider({ children }) {
             .maybeSingle()
           if (data) setProfile(data)
         }
-      // eslint-disable-next-line no-unused-vars
       } catch (e) {
         // silently fail
       } finally {
+        clearTimeout(timeout)
         setLoading(false)
       }
     }
@@ -53,12 +58,16 @@ export default function AuthProvider({ children }) {
               .maybeSingle()
             if (data) setProfile(data)
           }
+          clearTimeout(timeout)
           setLoading(false)
         }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   return children
