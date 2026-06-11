@@ -35,19 +35,20 @@ export default defineConfig({
           },
         ]
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: { maxAgeSeconds: 60 }
-            }
-          }
-        ]
+     workbox: {
+  globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+  maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'supabase-cache',
+        expiration: { maxAgeSeconds: 60 }
       }
+    }
+  ]
+}
     })
   ],
   resolve: {
