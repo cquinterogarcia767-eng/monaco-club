@@ -610,13 +610,9 @@ export default function AdminPage() {
           { key: 'discount_20', label: '20% descuento'          },
           { key: 'discount_30', label: '30% descuento'          },
           { key: 'discount_50', label: '50% descuento'          },
-          { key: 'shot',        label: 'Shot gratis'             },
-          { key: 'bottle',      label: 'Botella'                 },
-          { key: 'bottle_prem', label: 'Botella premium'         },
-          { key: 'vip_table',   label: 'Mesa VIP'                },
-          { key: 'free_entry',  label: 'Entrada gratis próxima'  },
-          { key: 'combo',       label: 'Combo especial'          },
-          { key: 'custom',      label: 'Personalizado'           },
+          { key: 'shot',        label: 'Camisa Colombia'        },
+          { key: 'bottle',      label: 'Cuebetazo de cerveza'   },
+          { key: 'custom',      label: 'Personalizado'          },
         ].map(p => (
           <button key={p.key} onClick={() => setNewPrize(n => ({ ...n, type: p.key }))}
             className={`w-full py-2 rounded-xl text-sm text-left px-3 transition-all
