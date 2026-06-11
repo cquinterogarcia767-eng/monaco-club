@@ -1,3 +1,4 @@
+import LogoReal from '@/assets/PERFIL-MONACO.png'
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-monaco-black px-5 py-10 pb-24">
@@ -5,16 +6,11 @@ export default function TermsPage() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <svg width="48" height="56" viewBox="0 0 64 72" fill="none" className="mx-auto mb-4">
-            <path d="M32 2L60 14V38C60 54 32 70 32 70C32 70 4 54 4 38V14L32 2Z"
-              fill="#C41E3A" stroke="#A8A8A8" strokeWidth="1.5"/>
-            <path d="M32 2L60 14V28H4V14L32 2Z"
-              fill="#141414" stroke="#A8A8A8" strokeWidth="1.5"/>
-            <text x="32" y="22" textAnchor="middle" fill="#F5F5F5"
-              fontSize="8" fontWeight="bold" fontFamily="serif" letterSpacing="0.5">MÓNACO</text>
-            <text x="32" y="46" textAnchor="middle" fill="#F5F5F5"
-              fontSize="4.5" fontFamily="serif">CLUB DE LICORES</text>
-          </svg>
+         <img
+  src={LogoReal}
+  alt="Mónaco Club"
+  className="w-16 h-16 object-contain mx-auto mb-4"
+/>
           <h1 className="font-display text-2xl text-monaco-white tracking-wide">
             Términos y Condiciones
           </h1>
