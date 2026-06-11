@@ -10,17 +10,22 @@ export default function LoginPage() {
   const [email, setEmail]     = useState('')
   const [sent, setSent]       = useState(false)
 
-  async function handleGoogle() {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
-    })
-    if (error) {
-      toast.error('Error al conectar con Google')
-      setLoading(false)
+async function handleGoogle() {
+  setLoading(true)
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: {
+        prompt: 'select_account'
+      }
     }
+  })
+  if (error) {
+    toast.error('Error al conectar con Google')
+    setLoading(false)
   }
+}
 
   async function handleMagicLink() {
     if (!email) return toast.error('Ingresa tu email')
