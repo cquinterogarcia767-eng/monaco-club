@@ -31,11 +31,8 @@ const PRIZE_LABELS = {
   discount_30: '30% de descuento',
   discount_50: '50% de descuento',
   shot:        'Camisa Colombia',
-  bottle:      'Botella sorpresa',
-  bottle_prem: 'Botella premium',
-  vip_table:   'Mesa VIP',
   free_entry:  'Cubetazo Cerveza',
-  combo:       'Combo especial',
+  
 }
 
 const PRIZE_CONFIG = {
@@ -43,12 +40,8 @@ const PRIZE_CONFIG = {
   discount_20: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
   discount_30: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
   discount_50: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
-  shot:        { icon: Gift,    color: 'text-green-400',    bg: 'bg-green-400/10 border-green-400/30'   },
-  bottle:      { icon: Gift,    color: 'text-purple-400',   bg: 'bg-purple-400/10 border-purple-400/30' },
-  bottle_prem: { icon: Crown,   color: 'text-purple-400',   bg: 'bg-purple-400/10 border-purple-400/30' },
-  vip_table:   { icon: Crown,   color: 'text-yellow-400',   bg: 'bg-yellow-400/10 border-yellow-400/30' },
   free_entry:  { icon: Star,    color: 'text-blue-400',     bg: 'bg-blue-400/10 border-blue-400/30'     },
-  combo:       { icon: Gift,    color: 'text-orange-400',   bg: 'bg-orange-400/10 border-orange-400/30' },
+ shot:        { icon: Crown,   color: 'text-yellow-400',   bg: 'bg-yellow-400/10 border-yellow-400/30' },
 }
 
 export default function PrizesPage() {
