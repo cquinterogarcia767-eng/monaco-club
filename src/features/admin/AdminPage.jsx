@@ -593,75 +593,131 @@ export default function AdminPage() {
           </div>
         )}
 
-        {tab === 'premios' && (
-          <div className="space-y-4">
-            <div className="card border-monaco-red/20 space-y-3">
-              <p className="text-monaco-white text-sm font-medium flex items-center gap-2">
-                <Star size={14} className="text-monaco-red" /> Premio de esta noche
-              </p>
-              <p className="text-monaco-silver text-xs leading-relaxed">Se entrega al cliente con más puntos al finalizar la noche.</p>
-              <div className="space-y-2">
-                {[
-                  { key: 'discount_20', label: '20% descuento' },
-                  { key: 'bottle',      label: 'Botella'       },
-                  { key: 'vip_table',   label: 'Mesa VIP'      },
-                  { key: 'custom',      label: 'Personalizado' },
-                ].map(p => (
-                  <button key={p.key} onClick={() => setNewPrize(n => ({ ...n, type: p.key }))}
-                    className={`w-full py-2 rounded-xl text-sm text-left px-3 transition-all
-                      ${newPrize.type === p.key ? 'bg-monaco-red/20 border border-monaco-red/30 text-monaco-red' : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
-                    {p.label}
-                  </button>
-                ))}
-                {newPrize.type === 'custom' && (
-                  <input value={newPrize.desc} onChange={e => setNewPrize(n => ({ ...n, desc: e.target.value }))}
-                    placeholder="Describe el premio..."
-                    className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/40 focus:outline-none focus:border-monaco-red/50" />
-                )}
-                <button onClick={() => addPrizeMut.mutate({ prizeType: newPrize.type, description: newPrize.desc, quantity: 1 })}
-                  disabled={addPrizeMut.isPending}
-                  className="w-full py-2.5 bg-monaco-red/20 border border-monaco-red/30 rounded-xl text-monaco-red text-sm font-medium">
-                  Guardar premio de la noche
-                </button>
-              </div>
-              {prizeConfig.length > 0 && (
-                <div className="border-t border-white/5 pt-3 space-y-2">
-                  <p className="text-[10px] text-monaco-silver uppercase tracking-wide">Premio configurado hoy</p>
-                  {prizeConfig.map(p => (
-                    <div key={p.id} className="flex items-center gap-2 py-1.5 bg-monaco-red/5 border border-monaco-red/20 rounded-xl px-3">
-                      <span className="text-monaco-red text-xs flex-1">{p.prize_description || p.prize_type}</span>
-                      <button onClick={() => removePrizeMut.mutate(p.id)} className="p-1 rounded-lg bg-white/5 text-monaco-silver"><X size={12} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <NightWinnerCard onAssign={(bet) => { setAssigningPrize(bet); setPrizeType(prizeConfig[0]?.prize_type ?? 'discount_20') }} />
-            <TournamentPrizeCard user={user} qc={qc} />
-            {winners.length > 0 && (
-              <div>
-                <p className="section-label flex items-center gap-2"><Crown size={12} className="text-yellow-400" /> Ganadores de apuestas hoy</p>
-                {winners.map(bet => (
-                  <div key={bet.id} className="card border-monaco-red/20 mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-monaco-red/20 border border-monaco-red/30 flex items-center justify-center text-monaco-red font-display flex-shrink-0">
-                        {bet.profiles?.full_name?.[0] ?? '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-monaco-white text-sm font-medium truncate">{bet.profiles?.full_name ?? 'Usuario'}</p>
-                        <p className="text-monaco-silver text-xs">{bet.matches?.home_flag} {bet.predicted_home}—{bet.predicted_away} {bet.matches?.away_flag} · +{bet.points_earned} pts</p>
-                      </div>
-                      <button onClick={() => { setAssigningPrize(bet); setPrizeType(prizeConfig[0]?.prize_type ?? 'discount_20') }}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-monaco-red text-white text-xs flex-shrink-0">
-                        <Gift size={12} /> Premio
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {tab === 'premios' && (
+  <div className="space-y-4">
+
+    {/* ── Premio de la noche ── */}
+    <div className="card border-monaco-red/20 space-y-3">
+      <p className="text-monaco-white text-sm font-medium flex items-center gap-2">
+        <Star size={14} className="text-monaco-red" /> Premio de esta noche
+      </p>
+      <p className="text-monaco-silver text-xs leading-relaxed">
+        Se entrega al cliente con más puntos al finalizar la noche.
+      </p>
+      <div className="space-y-2">
+        {[
+          { key: 'discount_10', label: '10% descuento'          },
+          { key: 'discount_20', label: '20% descuento'          },
+          { key: 'discount_30', label: '30% descuento'          },
+          { key: 'discount_50', label: '50% descuento'          },
+          { key: 'shot',        label: 'Shot gratis'             },
+          { key: 'bottle',      label: 'Botella'                 },
+          { key: 'bottle_prem', label: 'Botella premium'         },
+          { key: 'vip_table',   label: 'Mesa VIP'                },
+          { key: 'free_entry',  label: 'Entrada gratis próxima'  },
+          { key: 'combo',       label: 'Combo especial'          },
+          { key: 'custom',      label: 'Personalizado'           },
+        ].map(p => (
+          <button key={p.key} onClick={() => setNewPrize(n => ({ ...n, type: p.key }))}
+            className={`w-full py-2 rounded-xl text-sm text-left px-3 transition-all
+              ${newPrize.type === p.key
+                ? 'bg-monaco-red/20 border border-monaco-red/30 text-monaco-red'
+                : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
+            {p.label}
+          </button>
+        ))}
+        {newPrize.type === 'custom' && (
+          <input value={newPrize.desc}
+            onChange={e => setNewPrize(n => ({ ...n, desc: e.target.value }))}
+            placeholder="Describe el premio..."
+            className="w-full bg-monaco-black border border-white/10 rounded-xl
+                       px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/40
+                       focus:outline-none focus:border-monaco-red/50" />
         )}
+        <button
+          onClick={() => addPrizeMut.mutate({
+            prizeType: newPrize.type,
+            description: newPrize.desc,
+            quantity: 1
+          })}
+          disabled={addPrizeMut.isPending}
+          className="w-full py-2.5 bg-monaco-red/20 border border-monaco-red/30
+                     rounded-xl text-monaco-red text-sm font-medium">
+          Guardar premio de la noche
+        </button>
+      </div>
+      {prizeConfig.length > 0 && (
+        <div className="border-t border-white/5 pt-3 space-y-2">
+          <p className="text-[10px] text-monaco-silver uppercase tracking-wide">
+            Premio configurado hoy
+          </p>
+          {prizeConfig.map(p => (
+            <div key={p.id} className="flex items-center gap-2 py-1.5
+                                        bg-monaco-red/5 border border-monaco-red/20
+                                        rounded-xl px-3">
+              <span className="text-monaco-red text-xs flex-1">
+                {p.prize_description || p.prize_type}
+              </span>
+              <button onClick={() => removePrizeMut.mutate(p.id)}
+                className="p-1 rounded-lg bg-white/5 text-monaco-silver">
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* ── Premio Mayor del Mundial ── */}
+    <GrandPrizeConfig user={user} />
+
+    {/* ── Ranking de la noche ── */}
+    <NightWinnerCard onAssign={(bet) => {
+      setAssigningPrize(bet)
+      setPrizeType(prizeConfig[0]?.prize_type ?? 'discount_20')
+    }} />
+
+    {/* ── Premio final — asignar ganador ── */}
+    <TournamentPrizeCard user={user} qc={qc} />
+
+    {/* ── Ganadores de apuestas hoy ── */}
+    {winners.length > 0 && (
+      <div>
+        <p className="section-label flex items-center gap-2">
+          <Crown size={12} className="text-yellow-400" /> Ganadores de apuestas hoy
+        </p>
+        {winners.map(bet => (
+          <div key={bet.id} className="card border-monaco-red/20 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-monaco-red/20
+                              border border-monaco-red/30 flex items-center
+                              justify-center text-monaco-red font-display flex-shrink-0">
+                {bet.profiles?.full_name?.[0] ?? '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-monaco-white text-sm font-medium truncate">
+                  {bet.profiles?.full_name ?? 'Usuario'}
+                </p>
+                <p className="text-monaco-silver text-xs">
+                  {bet.matches?.home_flag} {bet.predicted_home}—{bet.predicted_away}{' '}
+                  {bet.matches?.away_flag} · +{bet.points_earned} pts
+                </p>
+              </div>
+              <button onClick={() => {
+                setAssigningPrize(bet)
+                setPrizeType(prizeConfig[0]?.prize_type ?? 'discount_20')
+              }}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg
+                           bg-monaco-red text-white text-xs flex-shrink-0">
+                <Gift size={12} /> Premio
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
         {tab === 'usuarios' && (
           <div className="space-y-4">
@@ -1021,6 +1077,144 @@ function TournamentPrizeCard({ user, qc }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function GrandPrizeConfig({ user }) {
+  const [editing, setEditing]       = useState(false)
+  const [prizeType, setPrizeType]   = useState('vip_table')
+  const [prizeDesc, setPrizeDesc]   = useState('')
+  const qc = useQueryClient()
+
+  const { data: grandPrize } = useQuery({
+    queryKey: ['grand-prize-config'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('tournament_prize_config')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return data
+    }
+  })
+
+  const saveMut = useMutation({
+    mutationFn: async ({ type, desc }) => {
+      // Borrar config anterior
+      await supabase.from('tournament_prize_config').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      // Insertar nueva
+      const { error } = await supabase.from('tournament_prize_config').insert({
+        prize_type: type,
+        prize_description: desc,
+        created_by: user.id,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Premio mayor configurado')
+      qc.invalidateQueries({ queryKey: ['grand-prize-config'] })
+      setEditing(false)
+    },
+    onError: (e) => toast.error(e.message)
+  })
+
+  const PRIZE_OPTIONS = [
+    { key: 'bottle_prem',     label: 'Botella premium'               },
+    { key: 'vip_table',       label: 'Mesa VIP + botella premium'    },
+    { key: 'vip_night',       label: 'Noche VIP completa'            },
+    { key: 'bottle_exclusive',label: 'Botella exclusiva + mesa VIP'  },
+    { key: 'party_pack',      label: 'Pack fiesta (mesa + 2 botellas)'},
+    { key: 'custom',          label: 'Personalizado'                  },
+  ]
+
+  return (
+    <div className="card border-yellow-400/30 bg-yellow-400/5 space-y-3">
+      <p className="text-monaco-white font-medium text-sm flex items-center gap-2">
+        <Trophy size={14} className="text-yellow-400" /> Premio Mayor — Final del Mundial
+      </p>
+
+      {/* Mostrar premio actual */}
+      {grandPrize && !editing && (
+        <div className="flex items-center gap-3 p-3 rounded-xl
+                        bg-yellow-500/10 border border-yellow-500/20">
+          <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center
+                          justify-center flex-shrink-0">
+            <Trophy size={20} className="text-yellow-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-monaco-white text-sm font-medium">
+              🏆 {grandPrize.prize_description || grandPrize.prize_type}
+            </p>
+            <p className="text-monaco-silver text-xs mt-0.5">
+              Para el jugador con más puntos al final del torneo
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!grandPrize && !editing && (
+        <p className="text-monaco-silver text-xs text-center py-2">
+          No has configurado el premio mayor aún
+        </p>
+      )}
+
+      {/* Botón editar/configurar */}
+      {!editing ? (
+        <button onClick={() => {
+          if (grandPrize) {
+            setPrizeType(grandPrize.prize_type)
+            setPrizeDesc(grandPrize.prize_description ?? '')
+          }
+          setEditing(true)
+        }}
+          className="w-full py-2.5 bg-yellow-500/20 border border-yellow-500/30
+                     rounded-xl text-yellow-400 text-sm font-medium">
+          {grandPrize ? 'Cambiar premio mayor' : 'Configurar premio mayor'}
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[10px] text-monaco-silver uppercase tracking-wide">
+            Elige el premio mayor
+          </p>
+          {PRIZE_OPTIONS.map(p => (
+            <button key={p.key} onClick={() => { setPrizeType(p.key); if (p.key !== 'custom') setPrizeDesc(p.label) }}
+              className={`w-full py-2 rounded-xl text-sm text-left px-3 transition-all
+                ${prizeType === p.key
+                  ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-400'
+                  : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
+              {p.label}
+            </button>
+          ))}
+          {prizeType === 'custom' && (
+            <input value={prizeDesc}
+              onChange={e => setPrizeDesc(e.target.value)}
+              placeholder="Describe el premio mayor..."
+              className="w-full bg-monaco-black border border-white/10 rounded-xl
+                         px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/40
+                         focus:outline-none focus:border-yellow-500/50" />
+          )}
+          <div className="flex gap-2">
+            <button onClick={() => setEditing(false)}
+              className="flex-1 py-2.5 bg-white/5 border border-white/10
+                         rounded-xl text-monaco-silver text-sm">
+              Cancelar
+            </button>
+            <button
+              onClick={() => saveMut.mutate({ type: prizeType, desc: prizeDesc })}
+              disabled={saveMut.isPending}
+              className="flex-1 py-2.5 bg-yellow-500/20 border border-yellow-500/30
+                         rounded-xl text-yellow-400 text-sm font-medium disabled:opacity-50">
+              {saveMut.isPending ? 'Guardando...' : '🏆 Guardar'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <p className="text-yellow-400/50 text-[10px] text-center">
+        Los clientes pueden ver este premio en la pantalla de Premios
+      </p>
     </div>
   )
 }
