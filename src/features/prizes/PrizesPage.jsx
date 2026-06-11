@@ -26,22 +26,17 @@ async function getTonightPrize() {
 }
 
 const PRIZE_LABELS = {
-  discount_10: '10% de descuento',
-  discount_20: '20% de descuento',
-  discount_30: '30% de descuento',
-  discount_50: '50% de descuento',
-  shot:        'Camisa Colombia',
-  free_entry:  'Cubetazo Cerveza',
+  discount_5:     'Descuento 5%',
+  beer_bucket:    'Cubetazo de cerveza',
+  colombia_shirt: 'Camisa Selección Colombia',
   
 }
 
 const PRIZE_CONFIG = {
-  discount_10: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
-  discount_20: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
-  discount_30: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
-  discount_50: { icon: Percent, color: 'text-monaco-red',   bg: 'bg-monaco-red/10 border-monaco-red/30' },
-  free_entry:  { icon: Star,    color: 'text-blue-400',     bg: 'bg-blue-400/10 border-blue-400/30'     },
- shot:        { icon: Crown,   color: 'text-yellow-400',   bg: 'bg-yellow-400/10 border-yellow-400/30' },
+  discount_5:     { icon: Percent, color: 'text-monaco-red',  bg: 'bg-monaco-red/10 border-monaco-red/30'  },
+  beer_bucket:    { icon: Gift,    color: 'text-yellow-400',  bg: 'bg-yellow-400/10 border-yellow-400/30'  },
+  colombia_shirt: { icon: Star,    color: 'text-yellow-400',  bg: 'bg-yellow-400/10 border-yellow-400/30'  },
+  
 }
 
 export default function PrizesPage() {

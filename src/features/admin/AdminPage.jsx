@@ -606,13 +606,10 @@ export default function AdminPage() {
       </p>
       <div className="space-y-2">
         {[
-          { key: 'discount_10', label: '10% descuento'          },
-          { key: 'discount_20', label: '20% descuento'          },
-          { key: 'discount_30', label: '30% descuento'          },
-          { key: 'discount_50', label: '50% descuento'          },
-          { key: 'shot',        label: 'Camisa Colombia'        },
-          { key: 'bottle',      label: 'Cuebetazo de cerveza'   },
-          { key: 'custom',      label: 'Personalizado'          },
+          { key: 'discount_5',         label: '5% descuento'           },
+          { key: 'scolombia_shirt',    label: 'Camisa Colombia'        },
+          { key: 'beer_bucket',        label: 'Cuebetazo de cerveza'   },
+          { key: 'custom',             label: 'Personalizado'          },
         ].map(p => (
           <button key={p.key} onClick={() => setNewPrize(n => ({ ...n, type: p.key }))}
             className={`w-full py-2 rounded-xl text-sm text-left px-3 transition-all
@@ -821,11 +818,11 @@ export default function AdminPage() {
             </div>
             <div className="space-y-2">
               {[
-                { key: 'discount_20', label: '20% de descuento' },
-                { key: 'bottle',      label: 'Botella sorpresa'  },
-                { key: 'vip_table',   label: 'Mesa VIP'          },
-                { key: 'custom',      label: 'Premio especial'   },
-              ].map(p => (
+  { key: 'discount_5',     label: 'Descuento 5%'              },
+  { key: 'beer_bucket',    label: 'Cubetazo de cerveza'       },
+  { key: 'colombia_shirt', label: 'Camisa Selección Colombia' },
+  { key: 'custom',         label: 'Premio especial'           },
+].map(p => (
                 <button key={p.key} onClick={() => setPrizeType(p.key)}
                   className={`w-full py-2.5 rounded-xl text-sm text-left px-3 transition-all
                     ${prizeType === p.key ? 'bg-monaco-red text-white' : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
