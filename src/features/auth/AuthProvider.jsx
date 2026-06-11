@@ -24,6 +24,7 @@ export default function AuthProvider({ children }) {
             .maybeSingle()
           if (data) setProfile(data)
         }
+      // eslint-disable-next-line no-unused-vars
       } catch (e) {
         // silently fail
       } finally {
