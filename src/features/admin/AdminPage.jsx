@@ -1,4 +1,4 @@
-import { useState }        from 'react'
+import { useState, useMemo}        from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore }    from '@/store/authStore'
@@ -18,9 +18,28 @@ const getToday = () => new Date().toISOString().split('T')[0]
 
 async function setMatchLive(matchId) {
   const { error } = await supabase
-    .rpc('set_match_live_with_window', { p_match_id: matchId, p_minutes: 15 })
+    .from('matches')
+    .update({
+      status: 'live',
+      betting_open: true,
+      live_started_at: new Date().toISOString()
+    })
+    .eq('id', matchId)
   if (error) throw error
 }
+
+
+async function updateLiveScore({ matchId, homeScore, awayScore }) {
+  const { error } = await supabase
+    .from('matches')
+    .update({
+      home_score: homeScore,
+      away_score: awayScore
+    })
+    .eq('id', matchId)
+  if (error) throw error
+}
+
 async function finishMatch({ matchId, homeScore, awayScore }) {
   const { error } = await supabase.from('matches')
     .update({ status: 'finished', home_score: homeScore, away_score: awayScore, betting_open: false })
@@ -29,12 +48,7 @@ async function finishMatch({ matchId, homeScore, awayScore }) {
   const { error: e2 } = await supabase.rpc('calculate_night_winners', { p_match_id: matchId })
   if (e2) throw e2
 }
-async function updateLiveScore({ matchId, homeScore, awayScore }) {
-  const { error } = await supabase.rpc('update_live_score', {
-    p_match_id: matchId, p_home_score: homeScore, p_away_score: awayScore,
-  })
-  if (error) throw error
-}
+
 async function createMatch(data) {
   const { error } = await supabase.from('matches')
     .insert({ ...data, status: 'upcoming', betting_open: true })
@@ -152,19 +166,23 @@ export default function AdminPage() {
   const [prizeType, setPrizeType]           = useState('discount_20')
   const [prizeDesc, setPrizeDesc]           = useState('')
   const [closingTable, setClosingTable]     = useState(null)
+  const [matchView, setMatchView]           = useState('today')
   const [newPrize, setNewPrize]             = useState({ type: 'discount_20', desc: '', qty: 1 })
   const [newMatch, setNewMatch]             = useState({
     home_team: '', away_team: '', home_flag: '', away_flag: '', group_name: '', match_date: ''
   })
 
-  const { data: matches    = [], isLoading: lm } = useQuery({ queryKey: ['matches'],         queryFn: getMatches,         refetchInterval: 10000 })
-  const { data: tables     = [] }                = useQuery({ queryKey: ['tables'],           queryFn: getTables,          refetchInterval: 5000  })
-  const { data: sessions   = [] }                = useQuery({ queryKey: ['sessions'],         queryFn: getActiveSessions,  refetchInterval: 5000  })
-  const { data: waiters    = [] }                = useQuery({ queryKey: ['waiters'],          queryFn: getWaiters })
-  const { data: winners    = [] }                = useQuery({ queryKey: ['winners'],          queryFn: getNightWinners,    refetchInterval: 15000 })
-  const { data: prizeConfig = [] }               = useQuery({ queryKey: ['prize-config'],     queryFn: getPrizeConfig })
-  const { data: stats }                          = useQuery({ queryKey: ['tournament-stats'], queryFn: getTournamentStats, refetchInterval: 30000 })
-  const { data: allUsers   = [] }                = useQuery({ queryKey: ['all-users'],        queryFn: getAllUsers,        refetchInterval: 30000 })
+  // ✅ CORRECCIÓN: Definir todayStr antes de usarlo
+  const todayStr = getToday()
+
+        const { data: matches    = [], isLoading: lm } = useQuery({ queryKey: ['matches'],         queryFn: getMatches,         refetchInterval: 30000 })
+        const { data: tables     = [] }                = useQuery({ queryKey: ['tables'],           queryFn: getTables,          refetchInterval: 15000 })
+        const { data: sessions   = [] }                = useQuery({ queryKey: ['sessions'],         queryFn: getActiveSessions,  refetchInterval: 15000 })
+        const { data: waiters    = [] }                = useQuery({ queryKey: ['waiters'],          queryFn: getWaiters,         refetchInterval: 30000 })
+        const { data: winners    = [] }                = useQuery({ queryKey: ['winners'],          queryFn: getNightWinners,    refetchInterval: 30000 })
+        const { data: prizeConfig = [] }               = useQuery({ queryKey: ['prize-config'],     queryFn: getPrizeConfig })
+        const { data: stats }                          = useQuery({ queryKey: ['tournament-stats'], queryFn: getTournamentStats, refetchInterval: 60000 })
+        const { data: allUsers   = [] }                = useQuery({ queryKey: ['all-users'],        queryFn: getAllUsers,        refetchInterval: 60000 })
 
   function useMut(fn, keys, msg) {
     return useMutation({
@@ -235,22 +253,44 @@ export default function AdminPage() {
   }
 
   async function handleAddWaiter() {
-    if (!waiterEmail.trim()) return toast.error('Ingresa el email')
+  if (!waiterEmail.trim()) return toast.error('Ingresa el email')
+  try {
+    // Buscar directamente en profiles con el email de auth
+    const { data: users, error: searchError } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .eq('role', 'user')
+
+    if (searchError) return toast.error('Error buscando usuario')
+
+    // Buscar el email en auth.users via RPC
+    let userId = null
     try {
-      const { data: userId, error: rpcError } = await supabase
-        .rpc('get_user_id_by_email', { p_email: waiterEmail.trim().toLowerCase() })
-      if (rpcError) return toast.error('Error: ' + rpcError.message)
-      if (!userId)  return toast.error('No se encontró usuario con ese email')
-      const { error: updateError } = await supabase
-        .from('profiles').update({ role: 'waiter' }).eq('id', userId)
-      if (updateError) return toast.error('Error: ' + updateError.message)
-      toast.success('Mesero agregado correctamente')
-      qc.invalidateQueries({ queryKey: ['waiters'] })
-      setWaiterEmail('')
+      const { data } = await supabase.rpc('get_user_id_by_email', {
+        p_email: waiterEmail.trim().toLowerCase()
+      })
+      userId = data
     } catch (e) {
-      toast.error('Error inesperado')
+      // Si falla el RPC, buscar manualmente
+      return toast.error('No se encontró el usuario. Verifica que se haya registrado.')
     }
+
+    if (!userId) return toast.error('No se encontró usuario con ese email')
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ role: 'waiter' })
+      .eq('id', userId)
+
+    if (updateError) return toast.error('Error: ' + updateError.message)
+
+    toast.success('Mesero agregado')
+    qc.invalidateQueries({ queryKey: ['waiters'] })
+    setWaiterEmail('')
+  } catch (e) {
+    toast.error('Error inesperado: ' + e.message)
   }
+}
 
   const liveMatches     = matches.filter(m => m.status === 'live')
   const upcomingMatches = matches.filter(m => m.status === 'upcoming')
@@ -484,42 +524,131 @@ export default function AdminPage() {
           </div>
         )}
 
-        {tab === 'partidos' && (
-          <div className="space-y-4">
-            <div className="card border-monaco-red/20 space-y-3">
-              <p className="text-monaco-white font-medium text-sm flex items-center gap-2">
-                <Plus size={14} className="text-monaco-red" /> Crear partido
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'home_team', label: 'Local',             placeholder: 'Colombia' },
-                  { key: 'away_team', label: 'Visitante',         placeholder: 'Brasil'   },
-                  { key: 'home_flag', label: 'Bandera local',     placeholder: '🇨🇴'      },
-                  { key: 'away_flag', label: 'Bandera visitante', placeholder: '🇧🇷'      },
-                ].map(f => (
-                  <div key={f.key} className="space-y-1">
-                    <p className="text-[10px] text-monaco-silver uppercase tracking-wide">{f.label}</p>
-                    <input value={newMatch[f.key]} onChange={e => setNewMatch(m => ({ ...m, [f.key]: e.target.value }))}
-                      placeholder={f.placeholder}
-                      className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/30 focus:outline-none focus:border-monaco-red/50" />
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] text-monaco-silver uppercase tracking-wide">Grupo / Fase</p>
-                <input value={newMatch.group_name} onChange={e => setNewMatch(m => ({ ...m, group_name: e.target.value }))}
-                  placeholder="Grupo A, Octavos, Final..."
-                  className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/30 focus:outline-none focus:border-monaco-red/50" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] text-monaco-silver uppercase tracking-wide">Fecha y hora (hora Colombia)</p>
-                <input type="datetime-local" value={newMatch.match_date} onChange={e => setNewMatch(m => ({ ...m, match_date: e.target.value }))}
-                  className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white focus:outline-none focus:border-monaco-red/50" />
-              </div>
-              <button onClick={handleCreateMatch} disabled={createMatchMut.isPending} className="btn-primary text-sm py-2.5">
-                {createMatchMut.isPending ? 'Creando...' : '+ Crear partido'}
-              </button>
+     {tab === 'partidos' && (
+  <div className="space-y-4">
+
+    {/* Toggle hoy / todos */}
+    <div className="flex bg-monaco-card rounded-xl p-1 border border-white/5">
+      <button onClick={() => setMatchView('today')}
+        className={`flex-1 py-2 rounded-lg text-xs font-medium tracking-wide transition-all
+          ${matchView === 'today' ? 'bg-monaco-red text-white' : 'text-monaco-silver'}`}>
+        📅 Hoy
+      </button>
+      <button onClick={() => setMatchView('all')}
+        className={`flex-1 py-2 rounded-lg text-xs font-medium tracking-wide transition-all
+          ${matchView === 'all' ? 'bg-monaco-red text-white' : 'text-monaco-silver'}`}>
+        📋 Todos los partidos
+      </button>
+    </div>
+
+    {/* Crear partido */}
+    <div className="card border-monaco-red/20 space-y-3">
+      <p className="text-monaco-white font-medium text-sm flex items-center gap-2">
+        <Plus size={14} className="text-monaco-red" /> Crear partido
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { key: 'home_team', label: 'Local',             placeholder: 'Colombia' },
+          { key: 'away_team', label: 'Visitante',         placeholder: 'Brasil'   },
+          { key: 'home_flag', label: 'Bandera local',     placeholder: '🇨🇴'      },
+          { key: 'away_flag', label: 'Bandera visitante', placeholder: '🇧🇷'      },
+        ].map(f => (
+          <div key={f.key} className="space-y-1">
+            <p className="text-[10px] text-monaco-silver uppercase tracking-wide">{f.label}</p>
+            <input value={newMatch[f.key]} onChange={e => setNewMatch(m => ({ ...m, [f.key]: e.target.value }))}
+              placeholder={f.placeholder}
+              className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/30 focus:outline-none focus:border-monaco-red/50" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-1">
+        <p className="text-[10px] text-monaco-silver uppercase tracking-wide">Grupo / Fase</p>
+        <input value={newMatch.group_name} onChange={e => setNewMatch(m => ({ ...m, group_name: e.target.value }))}
+          placeholder="Grupo A, Octavos, Final..."
+          className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white placeholder-monaco-silver/30 focus:outline-none focus:border-monaco-red/50" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-[10px] text-monaco-silver uppercase tracking-wide">Fecha y hora (hora Colombia)</p>
+        <input type="datetime-local" value={newMatch.match_date} onChange={e => setNewMatch(m => ({ ...m, match_date: e.target.value }))}
+          className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2 text-sm text-monaco-white focus:outline-none focus:border-monaco-red/50" />
+      </div>
+      <button onClick={handleCreateMatch} disabled={createMatchMut.isPending} className="btn-primary text-sm py-2.5">
+        {createMatchMut.isPending ? 'Creando...' : '+ Crear partido'}
+      </button>
+    </div>
+
+    {/* ══ VISTA HOY ══ */}
+   {matchView === 'today' && (() => {
+      const todayMatches = matches.filter(m => {
+        const d = new Date(m.match_date)
+        d.setHours(d.getHours() - 5)
+        return d.toISOString().split('T')[0] === todayStr
+      })
+      const todayLive     = todayMatches.filter(m => m.status === 'live')
+      const todayUpcoming = todayMatches.filter(m => m.status === 'upcoming')
+      const todayFinished = todayMatches.filter(m => m.status === 'finished')
+
+      return (
+        <div className="space-y-4">
+          {todayMatches.length === 0 && (
+            <div className="card text-center py-10">
+              <p className="text-monaco-silver text-sm">No hay partidos hoy</p>
+              <p className="text-monaco-silver/50 text-xs mt-1">Revisa "Todos los partidos"</p>
             </div>
+          )}
+
+          {/* En vivo hoy */}
+          {todayLive.length > 0 && (
+            <div>
+              <p className="section-label flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" /> En vivo
+              </p>
+              {todayLive.map(match => (
+                <LiveCard key={match.id} match={match} liveScore={liveScores[match.id]}
+                  onScoreChange={(side, v) => setLiveScores(s => ({ ...s, [match.id]: { ...s[match.id], [side]: v } }))}
+                  onUpdate={() => handleLiveScore(match.id)}
+                  onFinish={() => handleFinish(match.id)}
+                  isPending={liveScoreMut.isPending || finishMut.isPending} />
+              ))}
+            </div>
+          )}
+
+          {/* Próximos hoy */}
+          {todayUpcoming.length > 0 && (
+            <div>
+              <p className="section-label">Próximos hoy</p>
+              {todayUpcoming.map(match => (
+                <MatchAdminCard key={match.id} match={match} scores={scores}
+                  setScores={setScores} onLive={() => liveMut.mutate(match.id)}
+                  onFinish={() => handleFinish(match.id)} onToggleBet={toggleBetMut}
+                  isPending={liveMut.isPending || finishMut.isPending} />
+              ))}
+            </div>
+          )}
+
+          {/* Finalizados hoy */}
+          {todayFinished.length > 0 && (
+            <div>
+              <p className="section-label">Finalizados hoy</p>
+              {todayFinished.map(match => (
+                <FinishedMatchCard key={match.id} match={match} />
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    })()}
+
+    {/* ══ VISTA TODOS ══ */}
+    {matchView === 'all' && (
+      <div className="space-y-4">
+
+        {/* En vivo */}
+        {liveMatches.length > 0 && (
+          <div>
+            <p className="section-label flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" /> En vivo
+            </p>
             {liveMatches.map(match => (
               <LiveCard key={match.id} match={match} liveScore={liveScores[match.id]}
                 onScoreChange={(side, v) => setLiveScores(s => ({ ...s, [match.id]: { ...s[match.id], [side]: v } }))}
@@ -527,71 +656,41 @@ export default function AdminPage() {
                 onFinish={() => handleFinish(match.id)}
                 isPending={liveScoreMut.isPending || finishMut.isPending} />
             ))}
-            {upcomingMatches.length > 0 && (
-              <div>
-                <p className="section-label">Próximos</p>
-                {upcomingMatches.map(match => (
-                  <div key={match.id} className="card space-y-3 mb-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-monaco-red tracking-widest uppercase">{match.group_name}</span>
-                      <button onClick={() => toggleBetMut.mutate({ matchId: match.id, open: !match.betting_open })}
-                        className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-all
-                          ${match.betting_open ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-monaco-silver'}`}>
-                        {match.betting_open ? <><Unlock size={8} /> Abiertas</> : <><Lock size={8} /> Cerradas</>}
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-2xl">{match.home_flag}</span>
-                        <span className="text-xs text-monaco-white text-center">{match.home_team}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mx-2">
-                        <input type="number" min="0" max="20" value={scores[match.id]?.home ?? ''}
-                          onChange={e => setScores(s => ({ ...s, [match.id]: { ...s[match.id], home: e.target.value } }))}
-                          placeholder="0"
-                          className="w-12 h-12 bg-monaco-black border border-white/10 rounded-xl text-center text-xl text-monaco-white font-display focus:outline-none focus:border-monaco-red/50" />
-                        <span className="text-monaco-silver">—</span>
-                        <input type="number" min="0" max="20" value={scores[match.id]?.away ?? ''}
-                          onChange={e => setScores(s => ({ ...s, [match.id]: { ...s[match.id], away: e.target.value } }))}
-                          placeholder="0"
-                          className="w-12 h-12 bg-monaco-black border border-white/10 rounded-xl text-center text-xl text-monaco-white font-display focus:outline-none focus:border-monaco-red/50" />
-                      </div>
-                      <div className="flex flex-col items-center gap-1 flex-1">
-                        <span className="text-2xl">{match.away_flag}</span>
-                        <span className="text-xs text-monaco-white text-center">{match.away_team}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => liveMut.mutate(match.id)} disabled={liveMut.isPending}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs font-medium">
-                        <Play size={12} /> En vivo
-                      </button>
-                      <button onClick={() => handleFinish(match.id)} disabled={finishMut.isPending}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-monaco-red text-white rounded-xl text-xs font-medium">
-                        <Radio size={12} /> Finalizar
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {finishedMatches.length > 0 && (
-              <div>
-                <p className="section-label">Finalizados</p>
-                {finishedMatches.map(match => (
-                  <div key={match.id} className="card flex items-center gap-2 mb-2 opacity-60">
-                    <span>{match.home_flag}</span>
-                    <span className="text-monaco-white text-xs flex-1">{match.home_team}</span>
-                    <span className="text-monaco-red font-display">{match.home_score} — {match.away_score}</span>
-                    <span className="text-monaco-white text-xs flex-1 text-right">{match.away_team}</span>
-                    <span>{match.away_flag}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {matches.length === 0 && <div className="card text-center py-10"><p className="text-monaco-silver text-sm">No hay partidos cargados</p></div>}
           </div>
         )}
+
+        {/* Próximos */}
+        {upcomingMatches.length > 0 && (
+          <div>
+            <p className="section-label">Próximos ({upcomingMatches.length})</p>
+            {upcomingMatches.map(match => (
+              <MatchAdminCard key={match.id} match={match} scores={scores}
+                setScores={setScores} onLive={() => liveMut.mutate(match.id)}
+                onFinish={() => handleFinish(match.id)} onToggleBet={toggleBetMut}
+                isPending={liveMut.isPending || finishMut.isPending} />
+            ))}
+          </div>
+        )}
+
+        {/* Finalizados */}
+        {finishedMatches.length > 0 && (
+          <div>
+            <p className="section-label">Finalizados ({finishedMatches.length})</p>
+            {finishedMatches.map(match => (
+              <FinishedMatchCard key={match.id} match={match} />
+            ))}
+          </div>
+        )}
+
+        {matches.length === 0 && (
+          <div className="card text-center py-10">
+            <p className="text-monaco-silver text-sm">No hay partidos cargados</p>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
       {tab === 'premios' && (
   <div className="space-y-4">
@@ -1208,6 +1307,102 @@ function GrandPrizeConfig({ user }) {
       <p className="text-yellow-400/50 text-[10px] text-center">
         Los clientes pueden ver este premio en la pantalla de Premios
       </p>
+    </div>
+  )
+}
+
+function MatchAdminCard({ match, scores, setScores, onLive, onFinish, onToggleBet, isPending }) {
+  const matchTime = (() => {
+    const d    = new Date(match.match_date)
+    const h    = ((d.getUTCHours() - 5 + 24) % 24)
+    const m    = d.getUTCMinutes()
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    const mins = m > 0 ? `:${String(m).padStart(2, '0')}` : ''
+    return `${hour}${mins} ${ampm}`
+  })()
+
+  return (
+    <div className="card space-y-3 mb-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-monaco-red tracking-widest uppercase">{match.group_name}</span>
+          <span className="text-[10px] text-monaco-silver">· {matchTime}</span>
+        </div>
+        <button onClick={() => onToggleBet.mutate({ matchId: match.id, open: !match.betting_open })}
+          className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-all
+            ${match.betting_open ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-white/5 border-white/10 text-monaco-silver'}`}>
+          {match.betting_open ? <><Unlock size={8} /> Abiertas</> : <><Lock size={8} /> Cerradas</>}
+        </button>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <span className="text-2xl">{match.home_flag}</span>
+          <span className="text-xs text-monaco-white text-center">{match.home_team}</span>
+        </div>
+        <div className="flex items-center gap-2 mx-2">
+          <input type="number" min="0" max="20" value={scores[match.id]?.home ?? ''}
+            onChange={e => setScores(s => ({ ...s, [match.id]: { ...s[match.id], home: e.target.value } }))}
+            placeholder="0"
+            className="w-12 h-12 bg-monaco-black border border-white/10 rounded-xl text-center text-xl text-monaco-white font-display focus:outline-none focus:border-monaco-red/50" />
+          <span className="text-monaco-silver">—</span>
+          <input type="number" min="0" max="20" value={scores[match.id]?.away ?? ''}
+            onChange={e => setScores(s => ({ ...s, [match.id]: { ...s[match.id], away: e.target.value } }))}
+            placeholder="0"
+            className="w-12 h-12 bg-monaco-black border border-white/10 rounded-xl text-center text-xl text-monaco-white font-display focus:outline-none focus:border-monaco-red/50" />
+        </div>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <span className="text-2xl">{match.away_flag}</span>
+          <span className="text-xs text-monaco-white text-center">{match.away_team}</span>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onLive} disabled={isPending}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs font-medium">
+          <Play size={12} /> En vivo
+        </button>
+        <button onClick={onFinish} disabled={isPending}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-monaco-red text-white rounded-xl text-xs font-medium">
+          <Radio size={12} /> Finalizar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FinishedMatchCard({ match }) {
+  const matchTime = (() => {
+    const d    = new Date(match.match_date)
+    const h    = ((d.getUTCHours() - 5 + 24) % 24)
+    const m    = d.getUTCMinutes()
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    const mins = m > 0 ? `:${String(m).padStart(2, '0')}` : ''
+    return `${hour}${mins} ${ampm}`
+  })()
+
+  return (
+    <div className="card mb-2">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-monaco-red tracking-widest uppercase">{match.group_name}</span>
+          <span className="text-[10px] text-monaco-silver">· {matchTime}</span>
+        </div>
+        <span className="text-[10px] text-monaco-silver bg-white/5 px-2 py-0.5 rounded-full">
+          Finalizado
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-lg">{match.home_flag}</span>
+        <span className="text-monaco-white text-xs flex-1">{match.home_team}</span>
+        <div className="px-3 py-1 bg-monaco-black rounded-xl border border-white/10">
+          <span className="text-monaco-red font-display text-lg">
+            {match.home_score} — {match.away_score}
+          </span>
+        </div>
+        <span className="text-monaco-white text-xs flex-1 text-right">{match.away_team}</span>
+        <span className="text-lg">{match.away_flag}</span>
+      </div>
     </div>
   )
 }
