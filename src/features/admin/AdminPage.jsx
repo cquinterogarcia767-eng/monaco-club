@@ -155,6 +155,7 @@ export default function AdminPage() {
   const [newMatch, setNewMatch] = useState({
     home_team: '', away_team: '', home_flag: '', away_flag: '', group_name: '', match_date: ''
   })
+  const [adminEmail, setAdminEmail] = useState('')
 
   const todayStr = useMemo(() => {
     const d = new Date()
@@ -276,6 +277,24 @@ export default function AdminPage() {
     }
   }
 
+  async function handleAddAdmin() {
+  if (!adminEmail.trim()) return toast.error('Ingresa el email')
+  try {
+    const { data: userId, error: rpcError } = await supabase
+      .rpc('get_user_id_by_email', { p_email: adminEmail.trim().toLowerCase() })
+    if (rpcError) { toast.error('Error: ' + rpcError.message); return }
+    if (!userId) { toast.error('No se encontró usuario con ese email'); return }
+    const { error: updateError } = await supabase
+      .from('profiles').update({ role: 'admin' }).eq('id', userId)
+    if (updateError) { toast.error('Error: ' + updateError.message); return }
+    toast.success('Administrador agregado')
+    qc.invalidateQueries({ queryKey: ['all-users'] })
+    setAdminEmail('')
+  } catch (e) {
+    toast.error('Error: ' + e.message)
+  }
+}
+
   const liveMatches = matches.filter(m => m.status === 'live')
   const upcomingMatches = matches.filter(m => m.status === 'upcoming')
   const finishedMatches = matches.filter(m => m.status === 'finished')
@@ -289,6 +308,7 @@ export default function AdminPage() {
   const todayLive = todayMatches.filter(m => m.status === 'live')
   const todayUpcoming = todayMatches.filter(m => m.status === 'upcoming')
   const todayFinished = todayMatches.filter(m => m.status === 'finished')
+  
 
   if (lm) return <LoadingScreen />
 
@@ -465,6 +485,25 @@ export default function AdminPage() {
             <input value={waiterEmail} onChange={e => setWaiterEmail(e.target.value)} placeholder="email@ejemplo.com" type="email" className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2.5 text-sm text-monaco-white placeholder-monaco-silver/40 focus:outline-none focus:border-yellow-500/50" />
             <button onClick={handleAddWaiter} className="btn-primary text-sm py-2.5">Asignar rol de mesero</button>
           </div>
+
+          <div className="card border-monaco-red/20 space-y-3">
+            <p className="text-monaco-white text-sm font-medium flex items-center gap-2">
+              <Crown size={14} className="text-monaco-red" /> Agregar administrador
+            </p>
+            <p className="text-monaco-silver text-xs leading-relaxed">
+              El usuario debe registrarse primero. Luego ingresa su email.
+            </p>
+            <input
+              value={adminEmail}
+              onChange={e => setAdminEmail(e.target.value)}
+              placeholder="email@ejemplo.com" type="email"
+              className="w-full bg-monaco-black border border-white/10 rounded-xl px-3 py-2.5 text-sm text-monaco-white placeholder-monaco-silver/40 focus:outline-none focus:border-monaco-red/50" />
+            <button onClick={handleAddAdmin} className="w-full py-2.5 bg-monaco-red rounded-xl text-white text-sm font-medium">
+              Asignar rol de admin
+            </button>
+          </div>
+
+
           {waiters.length > 0 && (<div><p className="section-label flex items-center gap-2"><Users size={12} /> Meseros ({waiters.length})</p>{waiters.map(w => (
             <div key={w.id} className="card flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center text-yellow-400 font-display flex-shrink-0">{w.avatar_url ? <img src={w.avatar_url} className="w-full h-full rounded-full object-cover" /> : w.full_name?.[0] ?? '?'}</div>
