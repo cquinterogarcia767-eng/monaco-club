@@ -12,14 +12,19 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
   const hasBet     = !!existingBet
   const correct    = existingBet?.is_correct
 
+  // ¿Puede apostar ahora? (upcoming O live con apuestas abiertas)
+  const canBetNow = canBet && !hasBet && (
+    match.status === 'upcoming' || (isLive && match.betting_open)
+  )
+
   function adjust(side, delta) {
-    if (!canBet || hasBet) return
+    if (!canBetNow) return
     if (side === 'home') setHome(v => Math.max(0, v + delta))
     else                 setAway(v => Math.max(0, v + delta))
   }
 
   function handleBet() {
-    if (!canBet || isPending) return
+    if (!canBetNow || isPending) return
     placeBet({
       matchId:       match.id,
       tableNumber,
@@ -37,10 +42,6 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
     const mins = m > 0 ? `:${String(m).padStart(2, '0')}` : ''
     return `${hour}${mins} ${ampm}`
   })()
-
-  // Marcador a mostrar — real si está en vivo o finalizado
-  const displayHome = (isLive || isFinished) ? (match.home_score ?? 0) : home
-  const displayAway = (isLive || isFinished) ? (match.away_score ?? 0) : away
 
   return (
     <div className={`card transition-all ${
@@ -83,7 +84,18 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
         </div>
       </div>
 
-      {/* Equipos y marcador */}
+      {/* Marcador en vivo — mostrar arriba cuando está en vivo */}
+      {isLive && (
+        <div className="flex items-center justify-center gap-2 mb-3 py-1.5 rounded-xl
+                        bg-green-500/10 border border-green-500/20">
+          <span className="text-[10px] text-green-400 uppercase tracking-wide">Marcador actual:</span>
+          <span className="text-green-400 font-display text-sm">
+            {match.home_score ?? 0} — {match.away_score ?? 0}
+          </span>
+        </div>
+      )}
+
+      {/* Equipos y selector de marcador */}
       <div className="flex items-center justify-between mb-4">
 
         {/* Local */}
@@ -94,26 +106,34 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
           </span>
         </div>
 
-        {/* Selector */}
+        {/* Selector de predicción */}
         <div className="flex items-center gap-2 mx-2">
 
           {/* Goles local */}
           <div className="flex flex-col items-center gap-1">
-            {canBet && !hasBet && !isLive && (
+            {canBetNow && (
               <button onClick={() => adjust('home', 1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
                            flex items-center justify-center active:bg-white/10">+</button>
             )}
             <div className={`w-11 h-11 rounded-xl flex items-center justify-center
                             text-xl font-display font-bold
-                            ${isLive
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            ${canBetNow
+                              ? 'bg-white/5 text-monaco-white border border-white/10'
+                              : isLive && hasBet
+                                ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
+                              : isFinished && correct
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                               : hasBet
                                 ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
+                              : isFinished
+                                ? 'bg-white/5 text-monaco-white border border-white/10'
                                 : 'bg-white/5 text-monaco-white border border-white/10'}`}>
-              {displayHome}
+              {hasBet ? existingBet.predicted_home :
+               isFinished ? match.home_score :
+               home}
             </div>
-            {canBet && !hasBet && !isLive && (
+            {canBetNow && (
               <button onClick={() => adjust('home', -1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
                            flex items-center justify-center active:bg-white/10">−</button>
@@ -124,21 +144,29 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
 
           {/* Goles visitante */}
           <div className="flex flex-col items-center gap-1">
-            {canBet && !hasBet && !isLive && (
+            {canBetNow && (
               <button onClick={() => adjust('away', 1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
                            flex items-center justify-center active:bg-white/10">+</button>
             )}
             <div className={`w-11 h-11 rounded-xl flex items-center justify-center
                             text-xl font-display font-bold
-                            ${isLive
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            ${canBetNow
+                              ? 'bg-white/5 text-monaco-white border border-white/10'
+                              : isLive && hasBet
+                                ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
+                              : isFinished && correct
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                               : hasBet
                                 ? 'bg-monaco-red/20 text-monaco-red border border-monaco-red/30'
+                              : isFinished
+                                ? 'bg-white/5 text-monaco-white border border-white/10'
                                 : 'bg-white/5 text-monaco-white border border-white/10'}`}>
-              {displayAway}
+              {hasBet ? existingBet.predicted_away :
+               isFinished ? match.away_score :
+               away}
             </div>
-            {canBet && !hasBet && !isLive && (
+            {canBetNow && (
               <button onClick={() => adjust('away', -1)}
                 className="w-6 h-6 rounded bg-white/5 text-monaco-silver text-sm
                            flex items-center justify-center active:bg-white/10">−</button>
@@ -155,19 +183,14 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
         </div>
       </div>
 
-      {/* Footer */}
-      {canBet && !hasBet && !isLive && (
+      {/* Botón apostar */}
+      {canBetNow && (
         <button onClick={handleBet} disabled={isPending} className="btn-primary text-sm py-2.5">
           {isPending ? 'Registrando...' : 'Apostar este marcador'}
         </button>
       )}
 
-      {canBet && !hasBet && isLive && match.betting_open && (
-        <button onClick={handleBet} disabled={isPending} className="btn-primary text-sm py-2.5">
-          {isPending ? 'Registrando...' : 'Apostar marcador actual'}
-        </button>
-      )}
-
+      {/* Ya apostó — partido en curso */}
       {hasBet && !isFinished && (
         <div className="flex items-center justify-center gap-2 py-2">
           <CheckCircle size={14} className="text-monaco-red" />
@@ -177,6 +200,7 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
         </div>
       )}
 
+      {/* Ya apostó — partido finalizado */}
       {hasBet && isFinished && (
         <div className={`flex items-center justify-center gap-2 py-2 rounded-xl
                         ${correct ? 'bg-green-500/10' : 'bg-white/5'}`}>
@@ -187,17 +211,28 @@ export default function MatchCard({ match, existingBet, canBet, tableNumber }) {
                 </span></>
             : <><Lock size={14} className="text-monaco-silver" />
                 <span className="text-xs text-monaco-silver">
-                  Apostaste {existingBet.predicted_home} — {existingBet.predicted_away}
+                  Apostaste {existingBet.predicted_home} — {existingBet.predicted_away} · +{existingBet.points_earned} pt
                 </span></>
           }
         </div>
       )}
 
+      {/* No puede apostar */}
       {!canBet && !hasBet && !isFinished && (
         <div className="flex items-center justify-center gap-2 py-2">
           <Lock size={12} className="text-monaco-silver/50" />
           <span className="text-xs text-monaco-silver/50">
             Activa tu mesa para apostar
+          </span>
+        </div>
+      )}
+
+      {/* Live con apuestas cerradas y no apostó */}
+      {canBet && !hasBet && isLive && !match.betting_open && (
+        <div className="flex items-center justify-center gap-2 py-2">
+          <Lock size={12} className="text-monaco-silver/50" />
+          <span className="text-xs text-monaco-silver/50">
+            Tiempo de apuestas terminado
           </span>
         </div>
       )}
