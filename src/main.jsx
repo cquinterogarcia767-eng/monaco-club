@@ -9,6 +9,13 @@ import { queryClient } from '@/lib/queryClient'
 import AuthProvider    from '@/features/auth/AuthProvider'
 import '@/styles/globals.css'
 
+// Limpiar Service Workers viejos que causan cuelgues
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(reg => reg.update())
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
