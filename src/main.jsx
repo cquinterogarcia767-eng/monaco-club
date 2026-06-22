@@ -10,9 +10,16 @@ import AuthProvider    from '@/features/auth/AuthProvider'
 import '@/styles/globals.css'
 
 // Limpiar Service Workers viejos que causan cuelgues
+// Forzar limpieza de Service Workers viejos
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(reg => reg.update())
+    registrations.forEach(reg => {
+      reg.unregister().then(() => {
+        if (registrations.length > 0) {
+          window.location.reload()
+        }
+      })
+    })
   })
 }
 
