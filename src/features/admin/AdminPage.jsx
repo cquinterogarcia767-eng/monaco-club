@@ -174,16 +174,19 @@ export default function AdminPage() {
   const { data: allBets = [] } = useQuery({
     queryKey: ['all-bets'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bets')
-        .select('*, profiles(full_name, avatar_url), matches(home_team, away_team, home_flag, away_flag, home_score, away_score, status)')
-        .eq('night_date', getToday())
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return data ?? []
-    },
-    refetchInterval: 15000
-  })
+    const { data: allBets = [] } = useQuery({
+  queryKey: ['all-bets'],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('bets')
+      .select('*, profiles(full_name, avatar_url), matches(home_team, away_team, home_flag, away_flag, home_score, away_score, status)')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (error) throw error
+    return data ?? []
+  },
+  refetchInterval: 15000
+})
 
   const liveMut = useMutation({
     mutationFn: setMatchLive,
