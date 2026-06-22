@@ -1,0 +1,24 @@
+config:
+  target: "https://mzzjmdwykgxqpmghyosp.supabase.co"
+  phases:
+    - duration: 30
+      arrivalRate: 10
+      name: "Simulando 100 usuarios"
+  defaults:
+    headers:
+      apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16emptZHd5a2d4cXBtZ2h5b3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzQ5NjgsImV4cCI6MjA5NjE1MDk2OH0.scnH27NV8yt2OmlN82AktN2J-XAzICvFjf8P0XTIwJE"
+      Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16emptZHd5a2d4cXBtZ2h5b3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzQ5NjgsImV4cCI6MjA5NjE1MDk2OH0.scnH27NV8yt2OmlN82AktN2J-XAzICvFjf8P0XTIwJE"
+
+scenarios:
+  - name: "Cargar partidos"
+    flow:
+      - get:
+          url: "/rest/v1/matches?select=*&order=match_date"
+  - name: "Cargar ranking"
+    flow:
+      - get:
+          url: "/rest/v1/full_ranking?select=*&order=total_points.desc"
+  - name: "Cargar perfil"
+    flow:
+      - get:
+          url: "/rest/v1/profiles?select=*&limit=50"

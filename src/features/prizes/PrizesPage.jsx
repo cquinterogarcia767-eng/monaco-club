@@ -80,9 +80,9 @@ export default function PrizesPage() {
           </p>
           <div className="space-y-2">
             {[
-              { pts: '1 pt',  desc: 'Vas al local y apuestas cualquier marcador'  },
-              { pts: '3 pts', desc: 'Aciertas el resultado — quién gana o empata' },
-              { pts: '5 pts', desc: 'Aciertas el marcador exacto del partido'     },
+              { pts: '1 pt',  desc: 'Por apostar cualquier marcador' },
+              { pts: '+ 3',   desc: 'Si aciertas quién gana o empata (total 4 pts)' },
+              { pts: '+ 5',   desc: 'Si aciertas el marcador exacto (total 6 pts)' },
             ].map(({ pts, desc }) => (
               <div key={pts} className="flex items-start gap-3">
                 <span className="text-monaco-red text-xs font-display w-12 flex-shrink-0 pt-0.5">

@@ -37,9 +37,9 @@ export default function TermsPage() {
         <Section title="3. Sistema de puntos">
           Los puntos se asignan así una vez finalizado el partido:
           <ul className="mt-2 space-y-1.5">
-            <Rule pts="1 pt"  rule="Por participar y apostar cualquier marcador" />
-            <Rule pts="3 pts" rule="Por acertar el resultado — equipo ganador o empate" />
-            <Rule pts="5 pts" rule="Por acertar el marcador exacto del partido" />
+            <Rule pts="1 pt"  rule="Por apostar cualquier marcador" />
+            <Rule pts="+ 3"   rule="Si aciertas el resultado — equipo ganador o empate (total 4 pts)" />
+            <Rule pts="+ 5"   rule="Si aciertas el marcador exacto del partido (total 6 pts)" />
           </ul>
         </Section>
 

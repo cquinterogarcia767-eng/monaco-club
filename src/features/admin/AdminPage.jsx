@@ -171,6 +171,19 @@ export default function AdminPage() {
   const { data: prizeConfig = [] } = useQuery({ queryKey: ['prize-config'], queryFn: getPrizeConfig })
   const { data: stats } = useQuery({ queryKey: ['tournament-stats'], queryFn: getTournamentStats, refetchInterval: 60000 })
   const { data: allUsers = [] } = useQuery({ queryKey: ['all-users'], queryFn: getAllUsers, refetchInterval: 60000 })
+  const { data: allBets = [] } = useQuery({
+    queryKey: ['all-bets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bets')
+        .select('*, profiles(full_name, avatar_url), matches(home_team, away_team, home_flag, away_flag, home_score, away_score, status)')
+        .eq('night_date', getToday())
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+    refetchInterval: 15000
+  })
 
   const liveMut = useMutation({
     mutationFn: setMatchLive,
@@ -318,7 +331,7 @@ export default function AdminPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="font-display text-2xl text-monaco-white tracking-wide capitalize mb-1">
-              {tab === 'dashboard' ? 'Dashboard' : tab === 'mesas' ? 'Mesas' : tab === 'partidos' ? 'Partidos' : tab === 'premios' ? 'Premios' : tab === 'usuarios' ? 'Usuarios' : 'Ajustes'}
+              {tab === 'dashboard' ? 'Dashboard' : tab === 'mesas' ? 'Mesas' : tab === 'partidos' ? 'Partidos' : tab === 'premios' ? 'Premios' : tab === 'apuestas' ? 'Apuestas' : tab === 'usuarios' ? 'Usuarios' : 'Ajustes'}
             </h1>
             <p className="text-monaco-silver text-xs">Mónaco Club · Mundial 2026</p>
           </div>
@@ -330,7 +343,7 @@ export default function AdminPage() {
           {[
             { key: 'dashboard', label: '📊 Dashboard' }, { key: 'mesas', label: '🪑 Mesas' },
             { key: 'partidos', label: '⚽ Partidos' }, { key: 'premios', label: '🏆 Premios' },
-            { key: 'usuarios', label: '👥 Usuarios' }, { key: 'ajustes', label: '⚙️ Ajustes' },
+            { key: 'apuestas', label: '🎯 Apuestas' }, { key: 'usuarios', label: '👥 Usuarios' }, { key: 'ajustes', label: '⚙️ Ajustes' },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${tab === t.key ? 'bg-monaco-red text-white' : 'bg-white/5 text-monaco-silver border border-white/10'}`}>
@@ -521,6 +534,72 @@ export default function AdminPage() {
             </div>
           ))}
         </div>)}
+
+        {tab === 'apuestas' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="card text-center border-monaco-red/30 bg-monaco-red/5">
+                <p className="text-2xl font-display text-monaco-red">{allBets.length}</p>
+                <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">Apuestas hoy</p>
+              </div>
+              <div className="card text-center">
+                <p className="text-2xl font-display text-monaco-white">{allBets.filter(b => b.is_correct).length}</p>
+                <p className="text-[10px] text-monaco-silver tracking-widest uppercase mt-1">Aciertos</p>
+              </div>
+            </div>
+            {allBets.length === 0 && (
+              <div className="card text-center py-10"><p className="text-monaco-silver text-sm">No hay apuestas hoy</p></div>
+            )}
+            {allBets.map(bet => {
+              const match = bet.matches
+              const isFinished = match?.status === 'finished'
+              const isExact = isFinished && bet.predicted_home === match.home_score && bet.predicted_away === match.away_score
+              const isResult = isFinished && !isExact && (
+                (bet.predicted_home > bet.predicted_away && match.home_score > match.away_score) ||
+                (bet.predicted_home < bet.predicted_away && match.home_score < match.away_score) ||
+                (bet.predicted_home === bet.predicted_away && match.home_score === match.away_score)
+              )
+              return (
+                <div key={bet.id} className={`card mb-2 ${isExact ? 'border-green-500/30 bg-green-500/5' : isResult ? 'border-yellow-500/20 bg-yellow-500/5' : ''}`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-monaco-red/20 border border-monaco-red/30 flex items-center justify-center text-xs text-monaco-red flex-shrink-0">
+                      {bet.profiles?.avatar_url
+                        ? <img src={bet.profiles.avatar_url} className="w-full h-full rounded-full object-cover" />
+                        : bet.profiles?.full_name?.[0] ?? '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-monaco-white text-sm font-medium truncate">{bet.profiles?.full_name ?? 'Usuario'}</p>
+                      <p className="text-monaco-silver text-[10px]">Mesa {bet.table_number ?? '—'} · {new Date(bet.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    {isFinished && (
+                      <span className={`text-xs font-display flex-shrink-0 ${isExact ? 'text-green-400' : isResult ? 'text-yellow-400' : 'text-monaco-silver/50'}`}>+{bet.points_earned} pts</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between bg-monaco-black/50 rounded-xl px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span>{match?.home_flag}</span>
+                      <span className="text-monaco-white text-xs">{match?.home_team}</span>
+                    </div>
+                    <span className="text-monaco-red font-display text-lg">{bet.predicted_home} — {bet.predicted_away}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-monaco-white text-xs">{match?.away_team}</span>
+                      <span>{match?.away_flag}</span>
+                    </div>
+                  </div>
+                  {isFinished && (
+                    <div className="flex items-center justify-center gap-2 mt-2 pt-2 border-t border-white/5">
+                      <span className="text-[10px] text-monaco-silver">Real:</span>
+                      <span className={`text-xs font-display ${isExact ? 'text-green-400' : 'text-monaco-silver'}`}>{match.home_score} — {match.away_score}</span>
+                      {isExact && <span className="text-[10px] text-green-400">✓ Exacto</span>}
+                      {isResult && <span className="text-[10px] text-yellow-400">✓ Resultado</span>}
+                      {!isExact && !isResult && <span className="text-[10px] text-monaco-silver/50">✗ Falló</span>}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {tab === 'ajustes' && (<div className="space-y-4">
           <div className="card space-y-2">
