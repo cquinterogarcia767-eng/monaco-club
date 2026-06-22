@@ -112,9 +112,10 @@ async function removeWaiter(id) {
   if (error) throw error
 }
 async function getTournamentStats() {
-  const { data: players } = await supabase.from('profiles')
-    .select('id, full_name, avatar_url, total_points, total_correct, total_bets')
-    .eq('role', 'user').order('total_points', { ascending: false })
+  const { data: players } = await supabase
+    .from('full_ranking')
+    .select('*')
+    .limit(20)
   const { data: bets } = await supabase.from('bets').select('id, is_correct')
   const { data: prizes } = await supabase.from('night_prizes').select('id')
   const { data: finished } = await supabase.from('matches').select('id').eq('status', 'finished')
