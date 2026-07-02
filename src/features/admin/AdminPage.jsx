@@ -184,7 +184,20 @@ export default function AdminPage() {
 
   // Mutations
   const liveMut = useMutation({ mutationFn: setMatchLive, onSuccess: () => { toast.success('Partido en vivo'); qc.invalidateQueries({ queryKey: ['matches'] }) }, onError: (e) => toast.error('Error: ' + e.message) })
-  const finishMut = useMutation({ mutationFn: finishMatch, onSuccess: () => { toast.success('¡Resultado guardado!'); qc.invalidateQueries({ queryKey: ['matches'] }); qc.invalidateQueries({ queryKey: ['winners'] }) }, onError: (e) => toast.error('Error: ' + e.message) })
+  const finishMut = useMutation({
+  mutationFn: finishMatch,
+  onSuccess: () => {
+    toast.success('¡Resultado guardado!')
+    qc.invalidateQueries({ queryKey: ['matches'] })
+    qc.invalidateQueries({ queryKey: ['winners'] })
+    qc.invalidateQueries({ queryKey: ['tournament-stats'] })
+    qc.invalidateQueries({ queryKey: ['night-ranking'] })
+    qc.invalidateQueries({ queryKey: ['all-bets'] })
+    qc.invalidateQueries({ queryKey: ['tournament-leader'] })
+    qc.invalidateQueries({ queryKey: ['all-users'] })
+  },
+  onError: (e) => toast.error('Error: ' + e.message)
+})
   const liveScoreMut = useMutation({ mutationFn: updateLiveScore, onSuccess: () => { toast.success('Marcador actualizado'); qc.invalidateQueries({ queryKey: ['matches'] }) }, onError: (e) => toast.error('Error: ' + e.message) })
   const createMatchMut = useMutation({ mutationFn: createMatch, onSuccess: () => { toast.success('Partido creado'); qc.invalidateQueries({ queryKey: ['matches'] }) }, onError: (e) => toast.error('Error: ' + e.message) })
   const toggleBetMut = useMutation({ mutationFn: toggleBetting, onSuccess: () => { toast.success('Apuestas actualizadas'); qc.invalidateQueries({ queryKey: ['matches'] }) }, onError: (e) => toast.error('Error: ' + e.message) })
