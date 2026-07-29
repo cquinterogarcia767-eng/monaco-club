@@ -1,4 +1,4 @@
-import { useState, useRef }  from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuthStore }      from '@/store/authStore'
 import { useMyBets }         from '@/features/bets/useBets'
 import { supabase }          from '@/lib/supabase'
@@ -19,6 +19,31 @@ export default function ProfilePage() {
   const [uploadingPhoto, setUploadingPhoto]    = useState(false)
   const fileInputRef                           = useRef(null)
   const signOut = useSignOut()
+
+  // ── Pedir nombre si falta o quedó por defecto ──
+  const [showNamePrompt, setShowNamePrompt] = useState(false)
+  const [tempName, setTempName]             = useState('')
+  const [savingName, setSavingName]         = useState(false)
+
+  useEffect(() => {
+    if (profile && (!profile.full_name || profile.full_name.trim() === '' || profile.full_name === 'Jugador')) {
+      setShowNamePrompt(true)
+    }
+  }, [profile])
+
+  async function saveName() {
+    if (!tempName.trim()) return toast.error('Ingresa tu nombre')
+    setSavingName(true)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: tempName.trim() })
+      .eq('id', user.id)
+    setSavingName(false)
+    if (error) return toast.error('Error al guardar el nombre')
+    setProfile({ ...profile, full_name: tempName.trim() })
+    toast.success('¡Nombre guardado!')
+    setShowNamePrompt(false)
+  }
 
   const accuracy = profile?.total_bets > 0
     ? Math.round((profile.total_correct / profile.total_bets) * 100)
@@ -237,6 +262,38 @@ export default function ProfilePage() {
               className="btn-ghost text-sm py-2.5"
             >
               Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal pedir nombre — obligatorio si falta */}
+      {showNamePrompt && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center px-6">
+          <div className="bg-monaco-card rounded-3xl p-6 w-full max-w-xs
+                          border border-monaco-red/30 space-y-4">
+            <div className="text-center">
+              <p className="font-display text-lg text-monaco-white">¡Bienvenido a Mónaco!</p>
+              <p className="text-monaco-silver text-xs mt-2 leading-relaxed">
+                Ingresa tu nombre completo para que el mesero pueda identificarte
+              </p>
+            </div>
+            <input
+              value={tempName}
+              onChange={e => setTempName(e.target.value)}
+              placeholder="Tu nombre completo"
+              autoFocus
+              className="w-full bg-monaco-black border border-white/10 rounded-xl
+                         px-4 py-3 text-sm text-monaco-white placeholder-monaco-silver/40
+                         focus:outline-none focus:border-monaco-red/50"
+            />
+            <button
+              onClick={saveName}
+              disabled={savingName}
+              className="w-full py-3 bg-monaco-red rounded-xl text-white
+                         text-sm font-medium disabled:opacity-50"
+            >
+              {savingName ? 'Guardando...' : 'Guardar y continuar'}
             </button>
           </div>
         </div>
