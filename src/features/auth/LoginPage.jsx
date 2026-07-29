@@ -27,17 +27,17 @@ async function handleGoogle() {
   }
 }
 
-  async function handleMagicLink() {
-    if (!email) return toast.error('Ingresa tu email')
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin }
-    })
-    if (error) toast.error(error.message)
-    else setSent(true)
-    setLoading(false)
-  }
+  // async function handleMagicLink() {
+  //   if (!email) return toast.error('Ingresa tu email')
+  //   setLoading(true)
+  //   const { error } = await supabase.auth.signInWithOtp({
+  //     email,
+  //     options: { emailRedirectTo: window.location.origin }
+  //   })
+  //   if (error) toast.error(error.message)
+  //   else setSent(true)
+  //   setLoading(false)
+  // }
 
   return (
     <div className="min-h-screen bg-monaco-black flex flex-col items-center
@@ -121,6 +121,7 @@ async function handleGoogle() {
           </button>
           */}
 
+          {/* Email / Magic Link — comentado, solo Google por ahora
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-white/10" />
             <span className="text-monaco-silver text-xs">o entra con email</span>
@@ -154,6 +155,7 @@ async function handleGoogle() {
               </p>
             </div>
           )}
+          */}
         </div>
 
         <p className="text-center text-monaco-silver text-xs leading-relaxed
